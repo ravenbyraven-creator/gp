@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Star, Tv } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Tv, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useUniverseDate, useEvents, useShows } from "@/lib/storage";
 import {
@@ -8,6 +8,7 @@ import {
   type PremiumEvent,
 } from "@/lib/calendar";
 import { EventsDialog } from "./EventsDialog";
+import { TapLog } from "./TapLog";
 import { cn } from "@/lib/utils";
 
 const WEEK_DAY_ORDER: number[] = [1, 2, 3, 4, 5, 6, 0];
@@ -45,6 +46,7 @@ export function CalendarView() {
     }
   }, [date.month, date.year]);
 
+  const [tapLogOpen, setTapLogOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
   const [externalEditing, setExternalEditing] = useState<PremiumEvent | null | undefined>(
@@ -152,6 +154,10 @@ export function CalendarView() {
     }
   };
 
+  const tonightShow = isViewingCurrentMonth
+    ? shows.find((s) => nightToDay(s.night) === date.day) ?? null
+    : null;
+
   const seasonLabel = `Season ${viewYear + 1}`;
   const monthLabel = MONTH_LABELS[viewMonth - 1];
 
@@ -168,6 +174,16 @@ export function CalendarView() {
           </h2>
         </div>
         <div className="flex items-center gap-1.5">
+          {tonightShow && (
+            <button
+              type="button"
+              onClick={() => setTapLogOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-[#dc1e1e]/60 bg-[#dc1e1e]/15 hover:bg-[#dc1e1e]/25 hover:border-[#dc1e1e]/80 transition-colors text-[10px] font-bold tracking-[0.18em] uppercase text-[#dc1e1e]"
+            >
+              <Zap className="w-3 h-3" />
+              File Show
+            </button>
+          )}
           {!isViewingCurrentMonth && (
             <button
               type="button"
@@ -376,6 +392,7 @@ export function CalendarView() {
         prefillDate={prefillDate}
       />
 
+      <TapLog open={tapLogOpen} onOpenChange={setTapLogOpen} />
     </div>
   );
 }
