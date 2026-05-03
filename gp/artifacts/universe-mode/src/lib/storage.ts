@@ -341,6 +341,29 @@ export function useShowDrafts() {
   return useLocalStorage<ShowDraft[]>("umc.showDrafts", []);
 }
 
+export type PlannedMatch = {
+  id: string;
+  superstarA: string;
+  superstarB: string;
+  matchType: string;
+  title?: string;
+  note?: string;
+  rivalryId?: string;
+  rivalryLogEntryId?: string;
+};
+
+export type MatchCard = {
+  id: string;
+  month: number;
+  week: number;
+  day: number;
+  matches: PlannedMatch[];
+};
+
+export function useMatchCards() {
+  return useLocalStorage<MatchCard[]>("umc.matchCards", []);
+}
+
 export function useContenderQueues() {
   return useLocalStorage<Record<string, string[]>>("umc.contenderQueues", {});
 }
@@ -383,6 +406,7 @@ export const APP_STORAGE_KEYS: string[] = [
   "umc.rosterPhotosMigrated",
   "umc.matchResults",
   "umc.showDrafts",
+  "umc.matchCards",
   "umc.tokenLog",
   "umc.autoMagazine",
   "umc.inboxGenerated",
