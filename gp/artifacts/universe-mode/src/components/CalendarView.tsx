@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Star, Tv, Shield } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, Tv } from "lucide-react";
 import { toast } from "sonner";
-import { useUniverseDate, useEvents, useShows, useMatchCards } from "@/lib/storage";
+import { useUniverseDate, useEvents, useShows } from "@/lib/storage";
 import {
   MONTH_LABELS,
   nightToDay,
   type PremiumEvent,
 } from "@/lib/calendar";
 import { EventsDialog } from "./EventsDialog";
-import { MatchCardModal } from "./MatchCardModal";
 import { cn } from "@/lib/utils";
 
 const WEEK_DAY_ORDER: number[] = [1, 2, 3, 4, 5, 6, 0];
@@ -34,14 +33,6 @@ export function CalendarView() {
   const [date] = useUniverseDate();
   const [events, setEvents] = useEvents();
   const [shows] = useShows();
-  const [matchCards] = useMatchCards();
-
-  const [selectedCell, setSelectedCell] = useState<{
-    week: number;
-    day: number;
-    showName?: string;
-    pleName?: string;
-  } | null>(null);
 
   const [viewMonth, setViewMonth] = useState(date.month);
   const [viewYear, setViewYear] = useState(date.year);
@@ -80,18 +71,6 @@ export function CalendarView() {
   for (const show of shows) {
     const d = nightToDay(show.night);
     if (d !== null && !showsByDay[d]) showsByDay[d] = show;
-  }
-
-  const matchCountByKey: Record<string, number> = {};
-  for (const card of matchCards) {
-    if (card.month === viewMonth) {
-      matchCountByKey[`${card.week}-${card.day}`] = card.matches.length;
-    }
-  }
-
-  function handleCellClick(week: number, day: number, show?: typeof shows[0], pleEvent?: PremiumEvent) {
-    if (!show && !pleEvent) return;
-    setSelectedCell({ week, day, showName: show?.name, pleName: pleEvent?.name });
   }
 
   const eventsByKey: Record<string, PremiumEvent> = {};
@@ -254,32 +233,24 @@ export function CalendarView() {
                 week === date.week &&
                 dayIdx === date.day;
 
-              const matchCount = matchCountByKey[`${week}-${dayIdx}`] ?? 0;
-              const isClickable = !!(show || pleEvent);
-
               return (
                 <button
                   key={dayIdx}
                   type="button"
-                  onClick={() => handleCellClick(week, dayIdx, show, pleEvent)}
                   onContextMenu={(e) => handleCellRightClick(e, week, dayIdx)}
                   className={cn(
                     "relative rounded-lg overflow-hidden border-2 text-left transition-all group",
                     "aspect-[4/3]",
-                    isClickable ? "cursor-pointer" : "cursor-default",
                     isToday
                       ? "border-emerald-400 shadow-[0_0_0_3px_rgba(52,211,153,0.15)]"
                       : pleEvent && !show
                         ? "border-amber-500/40 hover:border-amber-400/70"
-                        : isClickable
-                          ? "border-border hover:border-foreground/40"
-                          : "border-border/40",
+                        : "border-border hover:border-foreground/40",
                   )}
                   title={[
                     `${DAY_SHORT[dayIdx]} · Week ${week}`,
                     show?.name,
                     pleEvent?.name,
-                    matchCount > 0 ? `${matchCount} match${matchCount !== 1 ? "es" : ""} booked` : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -318,20 +289,6 @@ export function CalendarView() {
                       <span className="text-[8px] font-bold tracking-wider uppercase px-1 py-0.5 rounded bg-emerald-400 text-black">
                         NOW
                       </span>
-                    </div>
-                  )}
-
-                  {/* Match count badge */}
-                  {matchCount > 0 && !isToday && (
-                    <div className="absolute top-1 left-1 z-20 flex items-center gap-0.5 px-1 py-0.5 rounded bg-foreground/80 text-background">
-                      <Shield className="w-2 h-2 fill-current shrink-0" />
-                      <span className="text-[8px] font-bold">{matchCount}</span>
-                    </div>
-                  )}
-                  {matchCount > 0 && isToday && (
-                    <div className="absolute top-1 left-8 z-20 flex items-center gap-0.5 px-1 py-0.5 rounded bg-foreground/80 text-background">
-                      <Shield className="w-2 h-2 fill-current shrink-0" />
-                      <span className="text-[8px] font-bold">{matchCount}</span>
                     </div>
                   )}
 
@@ -419,19 +376,6 @@ export function CalendarView() {
         prefillDate={prefillDate}
       />
 
-      {/* ── Match Card Modal ── */}
-      {selectedCell && (
-        <MatchCardModal
-          open={!!selectedCell}
-          onOpenChange={(o) => { if (!o) setSelectedCell(null); }}
-          month={viewMonth}
-          week={selectedCell.week}
-          day={selectedCell.day}
-          showName={selectedCell.showName}
-          pleName={selectedCell.pleName}
-          currentDate={date}
-        />
-      )}
     </div>
   );
 }
