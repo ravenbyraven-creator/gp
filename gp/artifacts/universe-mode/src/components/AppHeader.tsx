@@ -60,31 +60,31 @@ export function AppHeader({ activeTab, onTabChange, onOpenSettings, isSettingsOp
                 alt="Gorilla Position"
                 className="h-8 w-8 object-contain shrink-0"
               />
-              <button
-                type="button"
-                onClick={() => handleTabChange("home")}
-                className={cn(
-                  "flex items-center relative transition-all focus:outline-none group",
-                  homeActive ? "opacity-100" : "opacity-70 hover:opacity-100"
-                )}
-                aria-label="Gorilla Position — Home"
-              >
-                <img
-                  src={gpWordmark}
-                  alt="Gorilla Position"
-                  className={cn(
-                    "h-5 object-contain shrink-0 transition-all",
-                    homeActive && "drop-shadow-[0_0_8px_rgba(220,30,30,0.6)]"
-                  )}
-                />
-                {homeActive && (
-                  <span className="absolute -bottom-[11px] left-0 right-0 h-[2px] bg-[#dc1e1e]" />
-                )}
-              </button>
             </div>
 
             {!isSettingsOpen && (
               <nav className="hidden md:flex items-center space-x-1 md:space-x-3 overflow-x-auto">
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("home")}
+                  className={cn(
+                    "relative flex items-center px-3 py-2 transition-all focus:outline-none whitespace-nowrap",
+                    homeActive ? "opacity-100" : "opacity-70 hover:opacity-100"
+                  )}
+                  aria-label="Gorilla Position — Home"
+                >
+                  <img
+                    src={gpWordmark}
+                    alt="Gorilla Position"
+                    className={cn(
+                      "h-4 object-contain shrink-0 transition-all",
+                      homeActive && "drop-shadow-[0_0_8px_rgba(220,30,30,0.6)]"
+                    )}
+                  />
+                  {homeActive && (
+                    <span className="absolute -bottom-[9px] left-0 right-0 h-[2px] bg-[#dc1e1e]" />
+                  )}
+                </button>
                 {TABS.map(t => {
                   const isActive = activeTab === t.key;
                   const isDesk = t.key === "desk";
