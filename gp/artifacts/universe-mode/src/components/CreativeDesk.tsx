@@ -121,8 +121,8 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
     }
     // Use the memoised context computed at render time (P-02 fix).
     const payload = { data: bookerContext };
-    const onSuccess = (data: any) => {
-      recordTokenUsage(setTokenLog, type as any, data._usage, universeDate ?? undefined);
+    const onSuccess = (data: Record<string, unknown> & { _usage?: { promptTokens: number; completionTokens: number; totalTokens: number } | null }) => {
+      recordTokenUsage(setTokenLog, type, data._usage, universeDate ?? undefined);
       const newEntry = { kind: type, id: crypto.randomUUID(), createdAt: Date.now(), universeDate, data } as RivalryEntry;
       setHistory(prev => [newEntry, ...prev]);
       setActiveEntry(newEntry);

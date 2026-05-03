@@ -69,19 +69,35 @@ function buildUniverseBundle(): string {
   );
 }
 
-function restoreUniverseBundle(json: string): { keysRestored: number } {
-  const parsed = JSON.parse(json);
-  if (!parsed || typeof parsed !== "object" || !parsed.data) {
+function restoreUniverseBundle(json: string): { keysRestored: number; versionWarning?: string } {
+  // JSON.parse is guarded by the caller's try/catch but we re-validate the
+  // structure here so every code path gets a meaningful error message.
+  const parsed = JSON.parse(json) as Record<string, unknown>;
+  if (!parsed || typeof parsed !== "object" || !parsed.data || typeof parsed.data !== "object") {
     throw new Error("Not a valid Gorilla Position backup file.");
   }
+
+  // Version compatibility: warn (but still proceed) when importing a backup
+  // that was created with a newer export version than this build supports.
+  let versionWarning: string | undefined;
+  const fileVersion = typeof parsed.version === "number" ? parsed.version : undefined;
+  if (fileVersion !== undefined && fileVersion > EXPORT_VERSION) {
+    versionWarning = `Backup is from a newer version (v${fileVersion}) — some data may not restore correctly.`;
+  }
+
   let keysRestored = 0;
+  const data = parsed.data as Record<string, unknown>;
   for (const key of APP_STORAGE_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(parsed.data, key)) {
-      window.localStorage.setItem(key, JSON.stringify(parsed.data[key]));
-      keysRestored++;
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      try {
+        window.localStorage.setItem(key, JSON.stringify(data[key]));
+        keysRestored++;
+      } catch {
+        // localStorage quota exceeded — skip this key and continue
+      }
     }
   }
-  return { keysRestored };
+  return { keysRestored, versionWarning };
 }
 
 export function SettingsView({ onClose }: { onClose: () => void }) {
@@ -229,7 +245,10 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   const handleConfirmImport = () => {
     if (!pendingImportJson) return;
     try {
-      const { keysRestored } = restoreUniverseBundle(pendingImportJson);
+      const { keysRestored, versionWarning } = restoreUniverseBundle(pendingImportJson);
+      if (versionWarning) {
+        toast.warning("Version mismatch", { description: versionWarning });
+      }
       toast.success(`Universe restored — ${keysRestored} data sets loaded`, {
         description: "Reloading now...",
       });
@@ -289,8 +308,7 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
 
   const handleConfirmRosterImport = () => {
     if (!pendingRosterData) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setRoster(pendingRosterData as any[]);
+    setRoster(pendingRosterData as import("@workspace/api-client-react").Wrestler[]);
     toast.success(`Roster loaded — ${pendingRosterData.length} superstars imported`, {
       description: "Your existing rivalries and championships are untouched.",
     });

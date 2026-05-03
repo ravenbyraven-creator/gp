@@ -101,16 +101,21 @@ export function InboxComposeReply({
     // Append note to the most recent active rivalry involving the sender (if talent)
     if (message.fromWrestlerId || message.senderType === "TALENT") {
       const fromName = message.from.toLowerCase();
+      // RivalrySide stores wrestler ids only (no Wrestler objects), so we
+      // cannot access .wrestlers — check the id list directly, falling back
+      // to a roster name lookup when fromWrestlerId is absent.
       const activeRivalries = rivalries
         .filter((r) => r.status === "ACTIVE")
         .filter((r) =>
-          r.sides?.some((side) =>
-            (side.wrestlers ?? []).some(
-              (w) =>
-                w.id === message.fromWrestlerId ||
-                w.name?.toLowerCase() === fromName
-            )
-          )
+          r.sides?.some((side) => {
+            if (message.fromWrestlerId) {
+              return side.wrestlerIds.includes(message.fromWrestlerId);
+            }
+            return side.wrestlerIds.some((id) => {
+              const w = roster.find((wr) => wr.id === id);
+              return w?.name?.toLowerCase() === fromName;
+            });
+          })
         )
         .slice()
         .sort((a, b) => compareDate(b.lastActivityDate, a.lastActivityDate));

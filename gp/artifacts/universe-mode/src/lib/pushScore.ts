@@ -80,9 +80,12 @@ export function computePushScore(
   );
   const titleBonus = isChampion ? 20 : 0;
 
+  // "COMPLETED" is not a valid Rivalry status ("ACTIVE" | "CONCLUDED") so
+  // the old `!== "COMPLETED"` check was always true, giving concluded feuds
+  // a feudBonus they should not receive. Use an affirmative equality check.
   const hasActiveFeud = rivalries.some(
     (r) =>
-      r.status !== "COMPLETED" &&
+      r.status === "ACTIVE" &&
       r.sides?.some((s) => (s.wrestlerIds ?? []).includes(wrestlerId)),
   );
   const feudBonus = hasActiveFeud ? 8 : 0;
