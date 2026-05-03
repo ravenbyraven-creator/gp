@@ -17,6 +17,7 @@ import { ARC_MILESTONES, ACT_META, deriveCurrentAct } from "@/lib/feudArc";
 import { deriveWrestlerStats } from "@/lib/matches";
 import { MatchLogger } from "@/components/MatchLogger";
 import { QuickLog } from "@/components/QuickLog";
+import { TapLog } from "@/components/TapLog";
 import { ContenderBoard } from "@/components/ContenderBoard";
 import type { AppTab } from "@/components/AppHeader";
 import { useInboxUnreadCount, useInboxReadIds, buildMessages } from "@/components/WrestlerInbox";
@@ -92,6 +93,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [matchLoggerOpen, setMatchLoggerOpen] = useState(false);
   const [quickLogOpen, setQuickLogOpen] = useState(false);
+  const [tapLogOpen, setTapLogOpen] = useState(false);
   const [roster] = useRoster();
   const [championships] = useChampionships();
   const [stables] = useStables();
@@ -330,25 +332,25 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 <span>{activeRivalries.length} feuds</span>
                 <span>{activeChampionships.length} titles</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {todayShow && (
                   <button
                     type="button"
-                    onClick={() => setQuickLogOpen(true)}
-                    className="flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded border border-[#dc1e1e]/60 bg-[#dc1e1e]/15 hover:bg-[#dc1e1e]/25 hover:border-[#dc1e1e]/80 transition-colors text-[10px] font-bold tracking-[0.18em] uppercase text-[#dc1e1e] shadow-sm"
+                    onClick={() => setTapLogOpen(true)}
+                    className="flex items-center gap-1.5 mt-1 px-4 py-2 rounded border border-[#dc1e1e]/70 bg-[#dc1e1e]/20 hover:bg-[#dc1e1e]/30 hover:border-[#dc1e1e] transition-colors text-[11px] font-bold tracking-[0.18em] uppercase text-[#dc1e1e] shadow-sm"
                   >
-                    <Zap className="w-3 h-3" />
-                    Quick Log
+                    <Zap className="w-3.5 h-3.5" />
+                    File Show
                   </button>
                 )}
                 {todayShow && (
                   <button
                     type="button"
-                    onClick={() => setMatchLoggerOpen(true)}
-                    className="flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded border border-white/15 bg-white/6 hover:bg-white/10 hover:border-white/25 transition-colors text-[10px] font-bold tracking-[0.18em] uppercase text-foreground/60 hover:text-foreground"
+                    onClick={() => setQuickLogOpen(true)}
+                    className="flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded border border-white/15 bg-white/6 hover:bg-white/10 hover:border-white/25 transition-colors text-[10px] font-bold tracking-[0.18em] uppercase text-foreground/50 hover:text-foreground"
                   >
                     <ClipboardList className="w-3 h-3" />
-                    Detailed Log
+                    Detailed
                   </button>
                 )}
                 <button
@@ -750,6 +752,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       <CaptureCanonDialog open={captureOpen} onOpenChange={setCaptureOpen} />
       <MatchLogger open={matchLoggerOpen} onOpenChange={setMatchLoggerOpen} date={universeDate} />
       <QuickLog open={quickLogOpen} onOpenChange={setQuickLogOpen} defaultShow={todayShow} />
+      <TapLog open={tapLogOpen} onOpenChange={setTapLogOpen} />
     </div>
   );
 }
