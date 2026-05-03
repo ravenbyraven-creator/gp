@@ -6,9 +6,11 @@ import {
   useFont,
   useAutoMagazine,
   useSeasonStart,
+  useUniverseDate,
+  useEvents,
   APP_STORAGE_KEYS,
 } from "@/lib/storage";
-import { MONTH_LABELS } from "@/lib/calendar";
+import { MONTH_LABELS, seasonYearOf } from "@/lib/calendar";
 import { useTokenLog, deriveTokenStats, formatTokenCount, ENDPOINT_LABELS } from "@/lib/tokens";
 import { CHAIRMEN } from "@/lib/chairmen";
 import { FONT_OPTIONS } from "@/lib/fonts";
@@ -83,6 +85,23 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   const [font, setFont] = useFont();
   const [autoMagazine, setAutoMagazine] = useAutoMagazine();
   const [seasonStart, setSeasonStart] = useSeasonStart();
+  const [date, setDate] = useUniverseDate();
+  const [, setEvents] = useEvents();
+  const [newSeasonConfirmOpen, setNewSeasonConfirmOpen] = useState(false);
+
+  const currentSeasonYear = seasonYearOf(date, seasonStart);
+  const nextSeasonYear = currentSeasonYear + 1;
+  const nextSeasonMonthLabel = MONTH_LABELS[seasonStart - 1];
+
+  const handleStartNewSeason = () => {
+    setDate({ year: nextSeasonYear, month: seasonStart, week: 1, day: 1 });
+    setEvents([]);
+    setNewSeasonConfirmOpen(false);
+    toast.success(`Season ${nextSeasonYear + 1} started`, {
+      description: `Universe date reset to ${nextSeasonMonthLabel} · Week 1. PLE schedule cleared.`,
+    });
+  };
+
   const [tokenLog, setTokenLog] = useTokenLog();
   const tokenStats = deriveTokenStats(tokenLog);
 
@@ -573,6 +592,17 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
           <div className="p-3 space-y-2">
             <button
               type="button"
+              onClick={() => setNewSeasonConfirmOpen(true)}
+              className="w-full flex items-center gap-2 px-4 py-2.5 rounded border border-destructive/40 bg-destructive/5 text-sm font-bold uppercase tracking-wider text-destructive/80 hover:bg-destructive/15 hover:border-destructive/60 hover:text-destructive transition-colors"
+            >
+              <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+              Start New Season
+              <span className="ml-auto text-[10px] font-normal normal-case tracking-normal opacity-70">
+                Clears PLE schedule only
+              </span>
+            </button>
+            <button
+              type="button"
               onClick={() => { setResetConfirmOpen(true); setResetText(""); }}
               className="w-full flex items-center gap-2 px-4 py-2.5 rounded border border-destructive/60 bg-destructive/10 text-sm font-bold uppercase tracking-wider text-destructive hover:bg-destructive hover:text-white hover:border-destructive transition-colors"
             >
@@ -586,6 +616,42 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
         </div>
 
       </div>
+
+      {/* ── Start New Season confirmation dialog ── */}
+      <Dialog open={newSeasonConfirmOpen} onOpenChange={setNewSeasonConfirmOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <RotateCcw className="w-5 h-5 text-foreground shrink-0" />
+              <DialogTitle className="font-display uppercase tracking-widest text-base text-foreground">
+                Start New Season
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+              This will advance your universe to{" "}
+              <strong className="text-foreground">{nextSeasonMonthLabel} · Week 1</strong>{" "}
+              and clear your PLE schedule so you can plan Season {nextSeasonYear + 1} from scratch.
+              <br /><br />
+              Your roster, rivalries, championships, match history, and all other data are untouched.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="ghost"
+              onClick={() => setNewSeasonConfirmOpen(false)}
+              className="text-muted-foreground"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleStartNewSeason}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Start Season {nextSeasonYear + 1}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Roster import confirmation dialog ── */}
       <Dialog
