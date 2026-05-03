@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,15 +40,33 @@ export function EventsDialog({
   events,
   setEvents,
   currentDate,
+  externalEditing,
+  prefillDate,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   events: PremiumEvent[];
   setEvents: (next: PremiumEvent[] | ((prev: PremiumEvent[]) => PremiumEvent[])) => void;
   currentDate: UniverseDate;
+  externalEditing?: PremiumEvent | null;
+  prefillDate?: { month: number; week: number; day: number };
 }) {
   const [editing, setEditing] = useState<PremiumEvent | null>(null);
   const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (externalEditing !== undefined) {
+      setEditing(externalEditing);
+      setAdding(false);
+    } else if (prefillDate) {
+      setEditing(null);
+      setAdding(true);
+    } else {
+      setEditing(null);
+      setAdding(false);
+    }
+  }, [open, externalEditing, prefillDate]);
 
   const sorted = sortUpcoming(events, currentDate);
 
@@ -88,6 +106,7 @@ export function EventsDialog({
         {showingForm ? (
           <EventForm
             initialData={editing}
+            prefillDate={editing ? undefined : prefillDate}
             onSave={handleSave}
             onCancel={() => {
               setEditing(null);
@@ -199,17 +218,19 @@ export function EventsDialog({
 
 function EventForm({
   initialData,
+  prefillDate,
   onSave,
   onCancel,
 }: {
   initialData: PremiumEvent | null;
+  prefillDate?: { month: number; week: number; day: number };
   onSave: (e: PremiumEvent) => void;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initialData?.name ?? "");
-  const [month, setMonth] = useState(initialData?.month ?? 1);
-  const [week, setWeek] = useState(initialData?.week ?? 1);
-  const [day, setDay] = useState(initialData?.day ?? 6);
+  const [month, setMonth] = useState(initialData?.month ?? prefillDate?.month ?? 1);
+  const [week, setWeek] = useState(initialData?.week ?? prefillDate?.week ?? 1);
+  const [day, setDay] = useState(initialData?.day ?? prefillDate?.day ?? 6);
   const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [imageUrl, setImageUrl] = useState<string | undefined>(initialData?.imageUrl);
   const { ref: fileRef, open: openFile, handleChange: handleFileChange } = useImageUpload((url) => setImageUrl(url));

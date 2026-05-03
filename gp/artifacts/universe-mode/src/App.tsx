@@ -11,6 +11,7 @@ import { WrestlerInbox } from "@/components/WrestlerInbox";
 import { SettingsView } from "@/components/SettingsView";
 import { GettingStarted } from "@/components/GettingStarted";
 import { Dashboard } from "@/components/Dashboard";
+import { CalendarView } from "@/components/CalendarView";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -78,6 +79,7 @@ function AppContent() {
           <News />
         ) : (
           <div className="container mx-auto px-4 md:px-6 py-6 md:py-8 h-full">
+            {activeTab === "calendar" && <CalendarView />}
             {activeTab === "desk" && <CreativeDesk onNavigate={setActiveTab} />}
             {activeTab === "roster" && <Roster />}
             {activeTab === "legacy" && <Legacy />}

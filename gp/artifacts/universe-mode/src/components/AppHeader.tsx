@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import gpLogo from "@assets/gorilla-position-logo_1777507317192.png";
 import gpWordmark from "@assets/gorilla-position-wordmark_1777507532121.png";
 
-export type AppTab = "home" | "inbox" | "news" | "desk" | "roster" | "shows" | "rivalries" | "legacy";
+export type AppTab = "home" | "inbox" | "calendar" | "news" | "desk" | "roster" | "shows" | "rivalries" | "legacy";
 
 interface AppHeaderProps {
   activeTab: AppTab;
@@ -19,6 +19,7 @@ interface AppHeaderProps {
 
 const TABS: { key: AppTab; label: string }[] = [
   { key: "inbox", label: "INBOX" },
+  { key: "calendar", label: "CALENDAR" },
   { key: "desk", label: "CREATIVE DESK" },
   { key: "rivalries", label: "RIVALRIES" },
   { key: "news", label: "NEWS" },
