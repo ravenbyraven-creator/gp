@@ -84,9 +84,24 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
   const showMutation = useBookShow();
   const surpriseMutation = useSurpriseMe();
   const promoMutation = useGeneratePromo();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   const currentChairman = chairman || CHAIRMEN[0];
+
+  // P-02 / R-04 fix: memoize the booker context. The payload is large; there
+  // is no reason to rebuild it on every render or inside each action handler.
+  const bookerContext = useMemo(
+    () => buildBookerContext(
+      roster, currentChairman, history, shows, universeDate, events,
+      rivalries, memories, issues, championships, stables,
+      undefined, universeBible, seasonChronicles,
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roster, currentChairman, history, shows, universeDate, events,
+     rivalries, memories, issues, championships, stables,
+     universeBible, seasonChronicles],
+  );
 
   // On mount: check sessionStorage for a focused entry from Rivalries History
   useEffect(() => {
@@ -104,9 +119,10 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
       toast.error("Roster too small", { description: "Add more superstars in the Roster tab first." });
       return;
     }
-    const payload = { data: buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles) };
+    // Use the memoised context computed at render time (P-02 fix).
+    const payload = { data: bookerContext };
     const onSuccess = (data: any) => {
-      recordTokenUsage(tokenLog, setTokenLog, type as any, data._usage, universeDate ?? undefined);
+      recordTokenUsage(setTokenLog, type as any, data._usage, universeDate ?? undefined);
       const newEntry = { kind: type, id: crypto.randomUUID(), createdAt: Date.now(), universeDate, data } as RivalryEntry;
       setHistory(prev => [newEntry, ...prev]);
       setActiveEntry(newEntry);
@@ -139,14 +155,15 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
     if (!promoWrestler) { toast.error("Pick a wrestler first."); return; }
     const payload = {
       data: {
-        ...buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles),
+        // Use the memoised context computed at render time (P-02 fix).
+        ...bookerContext,
         wrestlerName: promoWrestler,
         tone: promoTone,
       },
     };
     promoMutation.mutate(payload, {
       onSuccess: (data) => {
-        recordTokenUsage(tokenLog, setTokenLog, "promo", data._usage, universeDate ?? undefined);
+        recordTokenUsage(setTokenLog, "promo", data._usage, universeDate ?? undefined);
         const newEntry = { kind: "promo" as const, id: crypto.randomUUID(), createdAt: Date.now(), universeDate, data };
         setHistory(prev => [newEntry, ...prev]);
         setActiveEntry(newEntry);

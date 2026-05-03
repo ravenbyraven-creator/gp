@@ -126,7 +126,8 @@ export function News() {
 
   const issueMutation = useGenerateIssue();
   const rumorMutation = useGenerateRumor();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   const currentChairman = chairman || CHAIRMEN[0];
   const [newsSearch, setNewsSearch] = useState("");
@@ -187,7 +188,7 @@ export function News() {
       { data: { ...ctx, issueNumber: nextIssueNumber } },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "issue", data._usage, universeDate ?? undefined);
+          recordTokenUsage(setTokenLog, "issue", data._usage, universeDate ?? undefined);
           if ((data as any)?.error) {
             toast.error("Printing delayed", { description: (data as any).error });
             return;
@@ -269,7 +270,7 @@ export function News() {
       { data: ctx },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "rumor", data._usage, universeDate ?? undefined);
+          recordTokenUsage(setTokenLog, "rumor", data._usage, universeDate ?? undefined);
           if ((data as any)?.error) {
             toast.error("Sources went quiet", { description: (data as any).error });
             return;

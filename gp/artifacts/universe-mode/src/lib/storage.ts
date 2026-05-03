@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StorylineScene, ShowCard, SurpriseScene, PromoScript, Wrestler, ChairmanProfile, BookerChatMessage, Show } from "@workspace/api-client-react";
 import { SEED_SHOWS } from "./seedShows";
 import { SEED_ROSTER } from "./seedRoster";
@@ -225,8 +225,22 @@ export function useChairman() {
   return useLocalStorage<ChairmanProfile | null>("umc.chairman", null);
 }
 
+// P-01 fix: cap history at this many entries so localStorage never grows
+// unbounded. Enforced in the setter so every write site gets it for free.
+const MAX_HISTORY_ENTRIES = 500;
+
 export function useHistory() {
-  return useLocalStorage<RivalryEntry[]>("umc.history", []);
+  const [history, setHistoryRaw] = useLocalStorage<RivalryEntry[]>("umc.history", []);
+  const setHistory = useCallback(
+    (value: RivalryEntry[] | ((prev: RivalryEntry[]) => RivalryEntry[])) => {
+      setHistoryRaw(prev => {
+        const next = value instanceof Function ? value(prev) : value;
+        return next.length > MAX_HISTORY_ENTRIES ? next.slice(0, MAX_HISTORY_ENTRIES) : next;
+      });
+    },
+    [setHistoryRaw],
+  );
+  return [history, setHistory] as const;
 }
 
 export function useChat() {

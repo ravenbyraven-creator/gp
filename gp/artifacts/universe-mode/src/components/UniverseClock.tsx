@@ -95,7 +95,8 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const [titleReigns] = useTitleReigns();
   const issueMutation = useGenerateIssue();
   const [autoMagazine] = useAutoMagazine();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
   const [inboxGenerated, setInboxGenerated] = useInboxGenerated();
   const [inboxLastFire, setInboxLastFire] = useInboxLastFire();
   const currentChairman = chairman || CHAIRMEN[0];
@@ -141,7 +142,7 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
       { data: { ...ctx, issueNumber: nextIssueNumber + 1 } },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "issue", data._usage, prior);
+          recordTokenUsage(setTokenLog, "issue", data._usage, prior);
           if ((data as any)?.error) return;
           const featuredId = resolveWrestlerIdByName(
             data.cover.featuredWrestlerName,

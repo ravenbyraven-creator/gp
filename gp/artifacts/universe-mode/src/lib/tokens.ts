@@ -62,9 +62,11 @@ export function useTokenLog() {
   return useLocalStorage<TokenLogEntry[]>(TOKEN_LOG_KEY, []);
 }
 
+// R-06 fix: accepts a functional-updater setter so it always reads the
+// live log value even when called from a stale closure (e.g. inside a
+// mutation onSuccess that closes over a snapshot from an earlier render).
 export function recordTokenUsage(
-  log: TokenLogEntry[],
-  setLog: (next: TokenLogEntry[]) => void,
+  setLog: (updater: (prev: TokenLogEntry[]) => TokenLogEntry[]) => void,
   endpoint: EndpointKey,
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null | undefined,
   universeDate?: UniverseDate,
@@ -79,8 +81,7 @@ export function recordTokenUsage(
     at: Date.now(),
     universeDate,
   };
-  const next = [entry, ...log].slice(0, MAX_LOG_ENTRIES);
-  setLog(next);
+  setLog(prev => [entry, ...prev].slice(0, MAX_LOG_ENTRIES));
 }
 
 function emptyStats(): EndpointStats {

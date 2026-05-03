@@ -72,6 +72,23 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
   const [seasonChronicles] = useSeasonChronicles();
 
   const currentChairman = chairman || CHAIRMEN[0];
+
+  // P-02 / R-04 fix: memoize the full booker context object. buildBookerContext
+  // serialises the entire universe into a flat payload; doing it on every render
+  // or inside the send handler on every keystroke is wasteful. The memo only
+  // recomputes when one of the 13 universe slices actually changes.
+  const bookerContext = useMemo(
+    () => buildBookerContext(
+      roster, currentChairman, history, shows, universeDate, events,
+      rivalries, memories, issues, championships, stables,
+      undefined, universeBible, seasonChronicles,
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [roster, currentChairman, history, shows, universeDate, events,
+     rivalries, memories, issues, championships, stables,
+     universeBible, seasonChronicles],
+  );
+
   const activeRivalriesCount = history.filter(h => h.kind === "storyline").length;
 
   const suggestions = useMemo(() => {
@@ -268,7 +285,8 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
 
   const chatMutation = useBookerChat();
   const summarizeMutation = useSummarizeChat();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   // Hybrid memory constants:
   // RECENT_WINDOW — number of full messages always sent to the AI.
@@ -391,7 +409,8 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
     const unarchivedMessages = updatedMessages.slice(archivedCount);
     const recentToSend = unarchivedMessages.slice(-RECENT_WINDOW);
 
-    const context = buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles);
+    // Use the memoised context computed at render time (P-02 fix).
+    const context = bookerContext;
     chatMutation.mutate(
       {
         data: {
@@ -402,7 +421,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
       },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "chat", data._usage);
+          recordTokenUsage(setTokenLog, "chat", data._usage);
           const assistantMsg: BookerChatMessage = { role: BookerChatMessageRole.assistant, content: data.message };
           const allMessages = [...updatedMessages, assistantMsg];
 
@@ -427,7 +446,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
               { data: { messages: toArchiveWithContext } },
               {
                 onSuccess: (summaryData) => {
-                  recordTokenUsage(tokenLog, setTokenLog, "summarize", summaryData._usage);
+                  recordTokenUsage(setTokenLog, "summarize", summaryData._usage);
                   if (!summaryData.summary) return;
                   setSessions(prev => prev.map(s => {
                     if (s.id !== targetId) return s;

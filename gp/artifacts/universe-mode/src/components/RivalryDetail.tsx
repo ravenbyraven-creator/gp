@@ -543,7 +543,8 @@ function TimelineTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set(["BEGINNING"]));
   const [aiBlowoffScore, setAiBlowoffScore] = useState<{ score: number; rationale: string } | null>(null);
   const [pendingEntryId, setPendingEntryId] = useState<string | null>(null);
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   // Sorted oldest→newest for timeline display
   const sorted = useMemo(() => [...entries].reverse(), [entries]);
@@ -613,7 +614,7 @@ function TimelineTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
       },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "labelEntry", data._usage);
+          recordTokenUsage(setTokenLog, "labelEntry", data._usage);
           assignChapter(target.id, data.chapterType as ChapterType);
           toast.success(`Labeled as ${data.chapterType}`, { description: data.rationale });
           setPendingEntryId(null);
@@ -636,7 +637,7 @@ function TimelineTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
       },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "blowoffScore", data._usage);
+          recordTokenUsage(setTokenLog, "blowoffScore", data._usage);
           setAiBlowoffScore({ score: data.score, rationale: data.rationale });
         },
         onError: () => {
@@ -1136,7 +1137,8 @@ function ChaptersTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
   const [universeDate] = useUniverseDate();
   const baseContext = useAnalyzeBaseContext();
   const suggest = useSuggestChapter();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   const linked = useMemo(
     () =>
@@ -1224,7 +1226,7 @@ function ChaptersTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
       },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "suggestChapter", data._usage);
+          recordTokenUsage(setTokenLog, "suggestChapter", data._usage);
           const order = linked.length > 0 ? Math.max(...linked.map((c) => c.order)) + 1 : 0;
           const next: Chapter = {
             id: crypto.randomUUID(),
@@ -1418,7 +1420,8 @@ function MemoriesTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
   const [universeDate] = useUniverseDate();
   const baseContext = useAnalyzeBaseContext();
   const distill = useDistillMemories();
-  const [tokenLog, setTokenLog] = useTokenLog();
+  // tokenLog not needed for display here — only the setter is used.
+  const [, setTokenLog] = useTokenLog();
 
   const linked = useMemo(
     () =>
@@ -1468,7 +1471,7 @@ function MemoriesTab({ rivalry, entries }: { rivalry: Rivalry; entries: RivalryE
       },
       {
         onSuccess: (data) => {
-          recordTokenUsage(tokenLog, setTokenLog, "distillMemories", data._usage);
+          recordTokenUsage(setTokenLog, "distillMemories", data._usage);
           if (!data.memories || data.memories.length === 0) {
             toast.message("No new memories surfaced.");
             return;
