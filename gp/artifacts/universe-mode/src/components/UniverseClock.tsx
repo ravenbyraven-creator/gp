@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Undo2, Star, Tv } from "lucide-react";
+import { ChevronRight, Undo2, Star, Tv, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { useGenerateIssue } from "@workspace/api-client-react";
 import {
@@ -19,7 +19,9 @@ import {
   useAutoMagazine,
   buildBookerContext,
   useTitleReigns,
+  useShowDrafts,
 } from "@/lib/storage";
+import { ShowDraftLogger } from "./ShowDraftLogger";
 import {
   useInboxGenerated,
   useInboxLastFire,
@@ -65,7 +67,10 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const [shows] = useShows();
   const [lastDate, setLastDate] = useLastUniverseDate();
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [draftLoggerOpen, setDraftLoggerOpen] = useState(false);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
+  const [showDrafts] = useShowDrafts();
 
   const [roster] = useRoster();
   const [chairman] = useChairman();
@@ -369,6 +374,33 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
         </div>
       </div>
 
+      {/* === Pending draft banner === */}
+      {(() => {
+        const pending = showDrafts.filter((d) => d.status === "pending");
+        if (pending.length === 0) return null;
+        const newest = pending[0];
+        return (
+          <div className="px-4 py-2 border-b border-border bg-amber-500/5">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedDraftId(newest.id);
+                setDraftLoggerOpen(true);
+              }}
+              className="w-full flex items-center gap-2 text-left group"
+            >
+              <ClipboardList className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="text-[10px] font-bold tracking-widest uppercase text-amber-400 flex-1">
+                {pending.length === 1
+                  ? `1 show draft pending — ${newest.showName}`
+                  : `${pending.length} show drafts pending — tap to log`}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 text-amber-400/60 group-hover:text-amber-400 transition-colors shrink-0" />
+            </button>
+          </div>
+        );
+      })()}
+
       {/* === Bottom row: next PLE + advance/undo === */}
       <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         {/* Left: next premium event — opens Road To PLE if available, else events dialog */}
@@ -428,6 +460,12 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
         events={events}
         setEvents={setEvents}
         currentDate={date}
+      />
+
+      <ShowDraftLogger
+        draftId={selectedDraftId}
+        open={draftLoggerOpen}
+        onOpenChange={setDraftLoggerOpen}
       />
     </div>
   );

@@ -46,6 +46,33 @@ export type ShowResultsEntryData = {
   notes?: string;
 };
 
+export type ShowDraftMatch = {
+  id: string;
+  slot: string;
+  match: string;
+  plannedResult: string;
+  plannedTwist: string;
+  logged: boolean;
+  actualWinnerSideId?: "a" | "b";
+  actualOutcome?: import("./matches").MatchOutcome;
+  actualFinish?: string;
+  actualNotes?: string;
+  stars?: number;
+  titleChanged?: boolean;
+};
+
+export type ShowDraft = {
+  id: string;
+  showName: string;
+  showId?: string;
+  showImageUrl?: string;
+  universeDate: UniverseDate;
+  createdAt: number;
+  status: "pending" | "complete";
+  matches: ShowDraftMatch[];
+  resultEntryId?: string;
+};
+
 export type RivalryEntry =
   | { kind: "storyline"; id: string; createdAt: number; universeDate?: UniverseDate; data: StorylineScene; chapter?: ChapterType }
   | { kind: "show"; id: string; createdAt: number; universeDate?: UniverseDate; data: ShowCard; chapter?: ChapterType }
@@ -310,6 +337,10 @@ export function useMatchResults() {
   return useLocalStorage<import("./matches").MatchResult[]>("umc.matchResults", []);
 }
 
+export function useShowDrafts() {
+  return useLocalStorage<ShowDraft[]>("umc.showDrafts", []);
+}
+
 export function useContenderQueues() {
   return useLocalStorage<Record<string, string[]>>("umc.contenderQueues", {});
 }
@@ -351,6 +382,7 @@ export const APP_STORAGE_KEYS: string[] = [
   "umc.rosterPhotosMigratedVersion",
   "umc.rosterPhotosMigrated",
   "umc.matchResults",
+  "umc.showDrafts",
   "umc.tokenLog",
   "umc.autoMagazine",
   "umc.inboxGenerated",

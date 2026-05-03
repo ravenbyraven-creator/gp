@@ -2,11 +2,12 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import type { StorylineScene, ShowCard, SurpriseScene, PromoScript } from "@workspace/api-client-react";
 import { Stamp } from "./Stamp";
-import { BookOpen, ClipboardList } from "lucide-react";
+import { BookOpen, ClipboardList, Bookmark } from "lucide-react";
 import { FileToRivalryDialog } from "./RivalryDialogs";
-import type { RivalryEntry } from "@/lib/storage";
-import { useUniverseDate } from "@/lib/storage";
+import type { RivalryEntry, ShowDraft } from "@/lib/storage";
+import { useUniverseDate, useShowDrafts } from "@/lib/storage";
 import { MatchLogger } from "@/components/MatchLogger";
+import { toast } from "sonner";
 
 type QuickBookEntry = Extract<RivalryEntry, { kind: "storyline" | "show" | "surprise" | "promo" }>;
 
@@ -19,13 +20,48 @@ export function ResultScreen({ entry, onBack }: ResultScreenProps) {
   const [fileOpen, setFileOpen] = useState(false);
   const [matchLoggerOpen, setMatchLoggerOpen] = useState(false);
   const [date] = useUniverseDate();
+  const [, setShowDrafts] = useShowDrafts();
   const data = entry.data;
 
-  const showCard = entry.kind === "show" ? (entry.data as { matches?: Array<{ slot: string; match: string; result: string }> }) : null;
+  const showCard =
+    entry.kind === "show"
+      ? (entry.data as {
+          showName?: string;
+          showId?: string;
+          showImageUrl?: string;
+          matches?: Array<{ slot: string; match: string; result: string; twist?: string }>;
+        })
+      : null;
+
   const prefillSlots = useMemo(() => {
     if (!showCard?.matches) return [];
     return showCard.matches.map((m) => ({ slot: m.slot, matchText: m.match, resultText: m.result }));
   }, [showCard]);
+
+  const handleSaveDraft = () => {
+    if (!showCard?.matches) return;
+    const draft: ShowDraft = {
+      id: crypto.randomUUID(),
+      showName: showCard.showName ?? "Show",
+      showId: showCard.showId,
+      showImageUrl: showCard.showImageUrl,
+      universeDate: date,
+      createdAt: Date.now(),
+      status: "pending",
+      matches: showCard.matches.map((m) => ({
+        id: crypto.randomUUID(),
+        slot: m.slot,
+        match: m.match,
+        plannedResult: m.result,
+        plannedTwist: m.twist ?? "",
+        logged: false,
+      })),
+    };
+    setShowDrafts((prev) => [draft, ...prev]);
+    toast.success("Show draft saved", {
+      description: "Open the Universe Clock after playing to log your actual results.",
+    });
+  };
 
   return (
     <motion.div
@@ -67,13 +103,22 @@ export function ResultScreen({ entry, onBack }: ResultScreenProps) {
               ACCEPT & RETURN
             </button>
             {entry.kind === "show" && (
-              <button
-                onClick={() => setMatchLoggerOpen(true)}
-                className="w-full bg-[#dc1e1e]/10 border border-[#dc1e1e]/30 hover:bg-[#dc1e1e]/20 hover:border-[#dc1e1e]/50 text-[#dc1e1e]/80 hover:text-[#dc1e1e] py-3 rounded text-sm font-semibold tracking-wider transition-colors flex items-center justify-center gap-2"
-              >
-                <ClipboardList className="w-4 h-4" />
-                RESOLVE RESULTS
-              </button>
+              <>
+                <button
+                  onClick={() => setMatchLoggerOpen(true)}
+                  className="w-full bg-[#dc1e1e]/10 border border-[#dc1e1e]/30 hover:bg-[#dc1e1e]/20 hover:border-[#dc1e1e]/50 text-[#dc1e1e]/80 hover:text-[#dc1e1e] py-3 rounded text-sm font-semibold tracking-wider transition-colors flex items-center justify-center gap-2"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  RESOLVE RESULTS NOW
+                </button>
+                <button
+                  onClick={handleSaveDraft}
+                  className="w-full bg-transparent border border-border hover:border-foreground/40 text-muted-foreground hover:text-foreground py-3 rounded text-sm font-semibold tracking-wider transition-colors flex items-center justify-center gap-2"
+                >
+                  <Bookmark className="w-4 h-4" />
+                  SAVE DRAFT — LOG AFTER PLAYING
+                </button>
+              </>
             )}
             <button
               onClick={() => setFileOpen(true)}
