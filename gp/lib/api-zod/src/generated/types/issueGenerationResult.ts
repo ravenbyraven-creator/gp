@@ -7,6 +7,7 @@
  */
 import type { IssueCoverData } from "./issueCoverData";
 import type { IssueFeatureData } from "./issueFeatureData";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface IssueGenerationResult {
   cover: IssueCoverData;
@@ -15,4 +16,5 @@ export interface IssueGenerationResult {
    * @maxItems 6
    */
   features: IssueFeatureData[];
+  _usage?: TokenUsage;
 }

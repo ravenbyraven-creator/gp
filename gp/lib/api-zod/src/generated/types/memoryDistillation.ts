@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemoryDistillationItem } from "./memoryDistillationItem";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface MemoryDistillation {
   /** @maxItems 5 */
   memories: MemoryDistillationItem[];
+  _usage?: TokenUsage;
 }

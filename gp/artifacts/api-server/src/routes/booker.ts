@@ -152,6 +152,7 @@ type UpcomingEvent = {
 
 type ActiveRivalryMemory = {
   rivalryTitle: string;
+  sides?: string[];
   beats: string[];
 };
 
@@ -296,9 +297,14 @@ function upcomingEventsContext(events: UpcomingEvent[] | undefined): string {
 
 function activeRivalryMemoriesContext(memories: ActiveRivalryMemory[] | undefined): string {
   if (!memories || memories.length === 0) return "";
-  const blocks = memories.slice(0, 5).map((m) => {
-    const beats = m.beats.slice(0, 3).map((b) => `  - ${b}`).join("\n");
-    return `${m.rivalryTitle}\n${beats}`;
+  const blocks = memories.slice(0, 6).map((m) => {
+    const sidesLine = m.sides && m.sides.length > 0
+      ? `\n  Sides: ${m.sides.join(" vs ")}`
+      : "";
+    const beats = m.beats.length > 0
+      ? "\n" + m.beats.slice(0, 6).map((b) => `  - ${b}`).join("\n")
+      : "\n  (No canon beats filed yet — rivalry is active)";
+    return `${m.rivalryTitle}${sidesLine}${beats}`;
   });
   return `ACTIVE RIVALRY MEMORIES — defining beats from the player's most active feuds. Honor this continuity when you write:\n${blocks.join("\n\n")}`;
 }

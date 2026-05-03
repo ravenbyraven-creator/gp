@@ -8,6 +8,7 @@
 import type { StorylineSceneBeatsItem } from "./storylineSceneBeatsItem";
 import type { StorylineSceneKind } from "./storylineSceneKind";
 import type { SuggestedRivalryHint } from "./suggestedRivalryHint";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface StorylineScene {
   kind: StorylineSceneKind;
@@ -22,4 +23,5 @@ export interface StorylineScene {
   /** One-line news ticker headline summarizing this storyline */
   headline: string;
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }

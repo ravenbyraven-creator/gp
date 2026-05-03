@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TokenUsage } from "./tokenUsage";
 import type { UniverseDate } from "./universeDate";
 
 export interface ChapterSuggestion {
@@ -12,4 +13,5 @@ export interface ChapterSuggestion {
   description: string;
   suggestedStartDate: UniverseDate;
   suggestedEndDate?: UniverseDate;
+  _usage?: TokenUsage;
 }

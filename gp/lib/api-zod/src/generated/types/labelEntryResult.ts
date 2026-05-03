@@ -6,10 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LabelEntryResultChapterType } from "./labelEntryResultChapterType";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface LabelEntryResult {
   /** The suggested chapter type for this entry. */
   chapterType: LabelEntryResultChapterType;
   /** One sentence explaining why this chapter type fits. */
   rationale: string;
+  _usage?: TokenUsage;
 }

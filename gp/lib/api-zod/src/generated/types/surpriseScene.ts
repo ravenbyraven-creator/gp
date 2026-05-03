@@ -8,6 +8,7 @@
 import type { SuggestedRivalryHint } from "./suggestedRivalryHint";
 import type { SurpriseSceneBeatsItem } from "./surpriseSceneBeatsItem";
 import type { SurpriseSceneKind } from "./surpriseSceneKind";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface SurpriseScene {
   kind: SurpriseSceneKind;
@@ -16,4 +17,5 @@ export interface SurpriseScene {
   headline: string;
   beats: SurpriseSceneBeatsItem[];
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }

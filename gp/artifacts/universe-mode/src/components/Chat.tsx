@@ -11,10 +11,11 @@ import {
   useUniverseDate, useEvents, useRivalries, useMemories,
   useChampionships, useStables,
   buildBookerContext, useChatSessions, useActiveChatSessionId,
-  type ChatSession,
+  type ChatSession, type RivalryEntry,
 } from "@/lib/storage";
 import { upcomingEvents as sortUpcoming } from "@/lib/calendar";
 import type { Rivalry } from "@/lib/rivalry";
+import { rivalryDisplayTitle } from "@/lib/rivalry";
 import { useTokenLog, recordTokenUsage } from "@/lib/tokens";
 import { useIssues } from "@/lib/news";
 import { CHAIRMEN } from "@/lib/chairmen";
@@ -131,6 +132,134 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
 
     return chips.slice(0, 4);
   }, [rivalries, roster, universeDate, events, championships]);
+
+  type ProactiveSignal = { label: string; detail: string; prompt: string };
+
+  const proactiveSignals = useMemo((): ProactiveSignal[] => {
+    const signals: ProactiveSignal[] = [];
+
+    // 1. Generator handoff — something was generated in the last 5 minutes
+    const FIVE_MIN = 5 * 60 * 1000;
+    const latest = history[0];
+    if (
+      latest &&
+      Date.now() - latest.createdAt < FIVE_MIN &&
+      (latest.kind === "storyline" || latest.kind === "show" ||
+        latest.kind === "surprise" || latest.kind === "promo")
+    ) {
+      if (latest.kind === "storyline") {
+        const lastBeat = latest.data.beats[latest.data.beats.length - 1];
+        signals.push({
+          label: `JUST GENERATED: ${latest.data.feud.slice(0, 45)}`,
+          detail: `Participants: ${latest.data.participants.join(", ")}`,
+          prompt: `I just generated this storyline: "${latest.data.feud}" featuring ${latest.data.participants.join(", ")}. The last beat was: "${lastBeat?.text ?? ""}". How should I develop this further on next week's show?`,
+        });
+      } else if (latest.kind === "show") {
+        const main = latest.data.matches.find(m => m.slot === "MAIN EVENT") ?? latest.data.matches[latest.data.matches.length - 1];
+        signals.push({
+          label: `JUST BOOKED: ${latest.data.showName}`,
+          detail: `Main event: ${main?.match ?? "TBD"}`,
+          prompt: `I just booked ${latest.data.showName}. The main event was: ${main?.match ?? "TBD"} (${main?.result ?? ""}). What are the best follow-up angles for next week?`,
+        });
+      } else if (latest.kind === "surprise") {
+        signals.push({
+          label: `JUST DROPPED: ${latest.data.headline.slice(0, 45)}`,
+          detail: "How should this develop?",
+          prompt: `I just ran this surprise angle: "${latest.data.headline}". How should this develop into a proper feud over the next few weeks?`,
+        });
+      } else if (latest.kind === "promo") {
+        signals.push({
+          label: `JUST CUT: ${latest.data.wrestlerName.toUpperCase()} PROMO`,
+          detail: `Tone: ${latest.data.tone}`,
+          prompt: `${latest.data.wrestlerName} just cut a ${latest.data.tone.toLowerCase()} promo. What should happen to them next on TV to continue the momentum?`,
+        });
+      }
+    }
+
+    // 2. Win streak — from filed match results (newest-to-oldest in history, so reverse for chrono order)
+    const allMatches = history
+      .filter((h): h is Extract<RivalryEntry, { kind: "results" }> => h.kind === "results")
+      .flatMap(h => h.data.matches);
+
+    if (allMatches.length > 0 && signals.length < 3) {
+      const byId = new Map(roster.map(w => [w.id, w.name]));
+      const streaks = new Map<string, number>();
+      for (const match of [...allMatches].reverse()) {
+        const winner = match.sides.find(s => s.id === match.winnerSideId);
+        const losers = match.sides.filter(s => s.id !== match.winnerSideId);
+        if (winner) {
+          for (const id of winner.wrestlerIds) streaks.set(id, (streaks.get(id) ?? 0) + 1);
+        }
+        for (const side of losers) {
+          for (const id of side.wrestlerIds) streaks.set(id, 0);
+        }
+      }
+      const top = Array.from(streaks.entries())
+        .filter(([id, n]) => n >= 2 && byId.has(id))
+        .sort(([, a], [, b]) => b - a)[0];
+      if (top) {
+        const [id, count] = top;
+        const name = byId.get(id)!;
+        signals.push({
+          label: `${name.toUpperCase()} IS ON A ${count}-MATCH WIN STREAK`,
+          detail: "They're hot right now — capitalize or protect?",
+          prompt: `${name} is on a ${count}-match win streak. Should I capitalize with a title shot now, build them toward a PLE match, or protect the streak longer before cashing in?`,
+        });
+      }
+    }
+
+    // 3. PLE urgency — any PLE within 3 weeks
+    if (universeDate && events.length > 0 && signals.length < 3) {
+      const upcoming = sortUpcoming(events, universeDate);
+      if (upcoming.length > 0) {
+        const e = upcoming[0];
+        const weeksOut = e.month * 4 + e.week - universeDate.month * 4 - universeDate.week;
+        if (weeksOut >= 0 && weeksOut <= 3) {
+          const whenLabel = weeksOut === 0 ? "THIS WEEK" : weeksOut === 1 ? "1 WEEK AWAY" : `${weeksOut} WEEKS AWAY`;
+          signals.push({
+            label: `${e.name.toUpperCase()} — ${whenLabel}`,
+            detail: "Lock in your card now",
+            prompt: `${e.name} is ${whenLabel.toLowerCase()}. Help me finalize the card — what should main event, what title matches need to be set, and which storylines need a payoff?`,
+          });
+        }
+      }
+    }
+
+    // 4. Vacant title
+    if (signals.length < 3) {
+      const vacant = championships.filter(
+        c => c.active !== false && (!c.currentChampionIds || c.currentChampionIds.length === 0)
+      );
+      if (vacant.length > 0) {
+        signals.push({
+          label: `${vacant[0].name.toUpperCase()} IS VACANT`,
+          detail: "No champion set — book a contender",
+          prompt: `The ${vacant[0].name} is currently vacant. Who from my roster should win it, and what should the tournament or number-one contender match look like?`,
+        });
+      }
+    }
+
+    // 5. Cold rivalry — active rivalry with no recent activity (3+ weeks stale)
+    if (universeDate && signals.length < 3) {
+      const currentScore = universeDate.month * 4 + universeDate.week;
+      const cold = (rivalries as Rivalry[])
+        .filter(r => r.status === "ACTIVE")
+        .find(r => {
+          if (!r.lastActivityDate) return false;
+          return currentScore - (r.lastActivityDate.month * 4 + r.lastActivityDate.week) >= 3;
+        });
+      if (cold) {
+        const title = rivalryDisplayTitle(cold, roster);
+        signals.push({
+          label: `${title} HAS GONE QUIET`,
+          detail: "This feud needs a new beat",
+          prompt: `The ${title} rivalry has had no activity for a while. How should I reignite it — confrontation segment, sneak attack, stipulation match announcement, or something else?`,
+        });
+      }
+    }
+
+    return signals.slice(0, 3);
+  }, [history, roster, rivalries, events, championships, universeDate]);
 
   const chatMutation = useBookerChat();
   const summarizeMutation = useSummarizeChat();
@@ -516,13 +645,45 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
           {currentMessages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto">
+            <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full">
               <h2 className="text-2xl font-display font-bold uppercase tracking-widest text-foreground mb-2">
                 Talk to your creative team.
               </h2>
-              <p className="text-muted-foreground mb-8">
+              <p className="text-muted-foreground mb-6">
                 Ask about your roster, plan your next PLE, or workshop a storyline.
               </p>
+
+              {/* Proactive briefing signals */}
+              {proactiveSignals.length > 0 && (
+                <div className="w-full mb-6">
+                  <div className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/50 mb-2 text-left">
+                    Creative Briefing
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {proactiveSignals.map((sig) => (
+                      <button
+                        key={sig.label}
+                        onClick={() => handleSend(sig.prompt)}
+                        className="group flex items-start gap-3 px-4 py-3 border border-border rounded-xl bg-muted/10 hover:bg-muted/30 hover:border-foreground/30 text-left transition-colors w-full"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-bold tracking-widest uppercase text-foreground truncate">
+                            {sig.label}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">
+                            {sig.detail}
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/40 group-hover:text-muted-foreground pt-0.5 shrink-0 transition-colors">
+                          ASK →
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suggestion chips */}
               <div className="flex flex-wrap gap-2 justify-center">
                 {suggestions.map(s => (
                   <button

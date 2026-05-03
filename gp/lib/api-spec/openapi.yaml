@@ -455,10 +455,16 @@ components:
         rivalryTitle:
           type: string
           description: Display title or matchup line for the rivalry, e.g. "BLOODLINE VS CODY RHODES".
+        sides:
+          type: array
+          description: The two sides of this rivalry, each as a display string e.g. "Roman Reigns" or "Roman Reigns & Solo Sikoa".
+          maxItems: 2
+          items:
+            type: string
         beats:
           type: array
-          description: Up to 3 most recent memory beats from this rivalry, newest first.
-          maxItems: 3
+          description: Up to 6 most recent memory beats from this rivalry, newest first.
+          maxItems: 6
           items:
             type: string
       required: [rivalryTitle, beats]

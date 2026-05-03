@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TokenUsage } from "./tokenUsage";
 
 export interface BlowoffScoreResult {
   /**
@@ -15,4 +16,5 @@ export interface BlowoffScoreResult {
   score: number;
   /** 1-2 sentences explaining the score. Plain, direct, kayfabe voice. */
   rationale: string;
+  _usage?: TokenUsage;
 }

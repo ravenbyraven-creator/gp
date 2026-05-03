@@ -7,6 +7,7 @@
  */
 import type { ShowCardKind } from "./showCardKind";
 import type { ShowMatch } from "./showMatch";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface ShowCard {
   kind: ShowCardKind;
@@ -16,4 +17,5 @@ export interface ShowCard {
   matches: ShowMatch[];
   /** One-line news ticker headline summarizing this show */
   headline: string;
+  _usage?: TokenUsage;
 }

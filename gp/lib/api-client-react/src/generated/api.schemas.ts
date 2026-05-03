@@ -9,6 +9,15 @@ export interface HealthStatus {
   status: string;
 }
 
+/**
+ * Token consumption reported by the model for a single API call.
+ */
+export interface TokenUsage {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export type WrestlerBrand = (typeof WrestlerBrand)[keyof typeof WrestlerBrand];
 
 export const WrestlerBrand = {
@@ -226,8 +235,13 @@ export interface ActiveRivalryMemory {
   /** Display title or matchup line for the rivalry, e.g. "BLOODLINE VS CODY RHODES". */
   rivalryTitle: string;
   /**
-   * Up to 3 most recent memory beats from this rivalry, newest first.
-   * @maxItems 3
+   * The two sides of this rivalry, each as a display string e.g. "Roman Reigns" or "Roman Reigns & Solo Sikoa".
+   * @maxItems 2
+   */
+  sides?: string[];
+  /**
+   * Up to 6 most recent memory beats from this rivalry, newest first.
+   * @maxItems 6
    */
   beats: string[];
 }
@@ -358,6 +372,7 @@ export interface PromoScript {
   /** Sections of the promo. Each beat text is a quote spoken by the wrestler. */
   beats: PromoScriptBeatsItem[];
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }
 
 export type StorylineSceneKind =
@@ -385,6 +400,7 @@ export interface StorylineScene {
   /** One-line news ticker headline summarizing this storyline */
   headline: string;
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }
 
 export interface ShowMatch {
@@ -410,6 +426,7 @@ export interface ShowCard {
   matches: ShowMatch[];
   /** One-line news ticker headline summarizing this show */
   headline: string;
+  _usage?: TokenUsage;
 }
 
 export type BookerChatMessageRole =
@@ -465,10 +482,12 @@ export interface ChatSummarizeRequest {
 export interface ChatSummary {
   /** 100-150 token plain-text summary of the archived messages. Decisions, facts, and ongoing context only — no small talk. */
   summary: string;
+  _usage?: TokenUsage;
 }
 
 export interface ChatReply {
   message: string;
+  _usage?: TokenUsage;
 }
 
 export type SurpriseSceneKind =
@@ -490,6 +509,7 @@ export interface SurpriseScene {
   headline: string;
   beats: SurpriseSceneBeatsItem[];
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }
 
 export type RivalryAnalyzeEntryKind =
@@ -548,6 +568,7 @@ export interface ChapterSuggestion {
   description: string;
   suggestedStartDate: UniverseDate;
   suggestedEndDate?: UniverseDate;
+  _usage?: TokenUsage;
 }
 
 export interface MemoryDistillationItem {
@@ -559,6 +580,7 @@ export interface MemoryDistillationItem {
 export interface MemoryDistillation {
   /** @maxItems 5 */
   memories: MemoryDistillationItem[];
+  _usage?: TokenUsage;
 }
 
 /**
@@ -654,6 +676,7 @@ export interface IssueGenerationResult {
    * @maxItems 6
    */
   features: IssueFeatureData[];
+  _usage?: TokenUsage;
 }
 
 export interface RumorGenerationResult {
@@ -663,6 +686,7 @@ export interface RumorGenerationResult {
   body: string;
   /** Attribution like "Anonymous Backstage Source" or "Locker Room Insider". */
   fakeSource: string;
+  _usage?: TokenUsage;
 }
 
 /**
@@ -715,6 +739,7 @@ export interface LabelEntryResult {
   chapterType: LabelEntryResultChapterType;
   /** One sentence explaining why this chapter type fits. */
   rationale: string;
+  _usage?: TokenUsage;
 }
 
 export interface BlowoffScoreResult {
@@ -726,4 +751,5 @@ export interface BlowoffScoreResult {
   score: number;
   /** 1-2 sentences explaining the score. Plain, direct, kayfabe voice. */
   rationale: string;
+  _usage?: TokenUsage;
 }

@@ -527,13 +527,22 @@ export function buildBookerContext(
           });
 
         const beats = [...distilled, ...linked].slice(0, 6);
-        if (beats.length === 0) return null;
+
+        // Derive side labels from roster so the AI sees who is on each side
+        const sides = r.sides.map((s) => {
+          const names = s.wrestlerIds
+            .map((id) => roster.find((w) => w.id === id)?.name)
+            .filter((n): n is string => Boolean(n));
+          return names.length > 0 ? names.join(" & ") : (s.label || "TBD");
+        });
+
+        // Include the rivalry even when no beats are filed — AI should know it exists
         return {
           rivalryTitle: rivalryDisplayTitle(r, roster),
+          sides,
           beats,
         };
-      })
-      .filter((x): x is { rivalryTitle: string; beats: string[] } => Boolean(x));
+      });
   })();
 
   const recentMagazineHeadlines = [...issues]

@@ -9,6 +9,7 @@ import type { PromoScriptBeatsItem } from "./promoScriptBeatsItem";
 import type { PromoScriptKind } from "./promoScriptKind";
 import type { PromoTone } from "./promoTone";
 import type { SuggestedRivalryHint } from "./suggestedRivalryHint";
+import type { TokenUsage } from "./tokenUsage";
 
 export interface PromoScript {
   kind: PromoScriptKind;
@@ -22,4 +23,5 @@ export interface PromoScript {
   /** Sections of the promo. Each beat text is a quote spoken by the wrestler. */
   beats: PromoScriptBeatsItem[];
   suggestedRivalryHint?: SuggestedRivalryHint;
+  _usage?: TokenUsage;
 }

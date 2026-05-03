@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TokenUsage } from "./tokenUsage";
 
 export interface RumorGenerationResult {
   /** Short punchy rumor headline, ALL CAPS, max 8 words. */
@@ -13,4 +14,5 @@ export interface RumorGenerationResult {
   body: string;
   /** Attribution like "Anonymous Backstage Source" or "Locker Room Insider". */
   fakeSource: string;
+  _usage?: TokenUsage;
 }

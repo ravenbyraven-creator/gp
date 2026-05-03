@@ -30,7 +30,9 @@ export const generateStorylineBodyCurrentDateDayMax = 6;
 
 export const generateStorylineBodyUpcomingEventsMax = 5;
 
-export const generateStorylineBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const generateStorylineBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const generateStorylineBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const generateStorylineBodyActiveRivalryMemoriesMax = 5;
 
@@ -196,11 +198,18 @@ export const GenerateStorylineBody = zod.object({
             .describe(
               'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
             ),
+          sides: zod
+            .array(zod.string())
+            .max(generateStorylineBodyActiveRivalryMemoriesItemSidesMax)
+            .optional()
+            .describe(
+              'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+            ),
           beats: zod
             .array(zod.string())
             .max(generateStorylineBodyActiveRivalryMemoriesItemBeatsMax)
             .describe(
-              "Up to 3 most recent memory beats from this rivalry, newest first.",
+              "Up to 6 most recent memory beats from this rivalry, newest first.",
             ),
         })
         .describe(
@@ -321,12 +330,6 @@ export const GenerateStorylineBody = zod.object({
     .describe("Stables, factions, and tag teams the user is tracking"),
 });
 
-const TokenUsageSchema = zod.object({
-  promptTokens: zod.number().int(),
-  completionTokens: zod.number().int(),
-  totalTokens: zod.number().int(),
-}).optional();
-
 export const GenerateStorylineResponse = zod.object({
   kind: zod.enum(["storyline"]),
   title: zod.string(),
@@ -357,7 +360,14 @@ export const GenerateStorylineResponse = zod.object({
     .describe(
       "AI's guess at which rivalry this generation belongs to. Used to pre-select an existing rivalry in the file-to-rivalry dialog. The user always confirms before any filing happens.",
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -375,7 +385,9 @@ export const bookShowBodyCurrentDateDayMax = 6;
 
 export const bookShowBodyUpcomingEventsMax = 5;
 
-export const bookShowBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const bookShowBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const bookShowBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const bookShowBodyActiveRivalryMemoriesMax = 5;
 
@@ -541,11 +553,18 @@ export const BookShowBody = zod.object({
             .describe(
               'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
             ),
+          sides: zod
+            .array(zod.string())
+            .max(bookShowBodyActiveRivalryMemoriesItemSidesMax)
+            .optional()
+            .describe(
+              'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+            ),
           beats: zod
             .array(zod.string())
             .max(bookShowBodyActiveRivalryMemoriesItemBeatsMax)
             .describe(
-              "Up to 3 most recent memory beats from this rivalry, newest first.",
+              "Up to 6 most recent memory beats from this rivalry, newest first.",
             ),
         })
         .describe(
@@ -680,7 +699,14 @@ export const BookShowResponse = zod.object({
   headline: zod
     .string()
     .describe("One-line news ticker headline summarizing this show"),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -698,7 +724,9 @@ export const surpriseMeBodyCurrentDateDayMax = 6;
 
 export const surpriseMeBodyUpcomingEventsMax = 5;
 
-export const surpriseMeBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const surpriseMeBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const surpriseMeBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const surpriseMeBodyActiveRivalryMemoriesMax = 5;
 
@@ -864,11 +892,18 @@ export const SurpriseMeBody = zod.object({
             .describe(
               'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
             ),
+          sides: zod
+            .array(zod.string())
+            .max(surpriseMeBodyActiveRivalryMemoriesItemSidesMax)
+            .optional()
+            .describe(
+              'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+            ),
           beats: zod
             .array(zod.string())
             .max(surpriseMeBodyActiveRivalryMemoriesItemBeatsMax)
             .describe(
-              "Up to 3 most recent memory beats from this rivalry, newest first.",
+              "Up to 6 most recent memory beats from this rivalry, newest first.",
             ),
         })
         .describe(
@@ -1013,7 +1048,14 @@ export const SurpriseMeResponse = zod.object({
     .describe(
       "AI's guess at which rivalry this generation belongs to. Used to pre-select an existing rivalry in the file-to-rivalry dialog. The user always confirms before any filing happens.",
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -1031,7 +1073,9 @@ export const generatePromoBodyCurrentDateDayMax = 6;
 
 export const generatePromoBodyUpcomingEventsMax = 5;
 
-export const generatePromoBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const generatePromoBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const generatePromoBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const generatePromoBodyActiveRivalryMemoriesMax = 5;
 
@@ -1189,11 +1233,18 @@ export const GeneratePromoBody = zod
               .describe(
                 'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
               ),
+            sides: zod
+              .array(zod.string())
+              .max(generatePromoBodyActiveRivalryMemoriesItemSidesMax)
+              .optional()
+              .describe(
+                'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+              ),
             beats: zod
               .array(zod.string())
               .max(generatePromoBodyActiveRivalryMemoriesItemBeatsMax)
               .describe(
-                "Up to 3 most recent memory beats from this rivalry, newest first.",
+                "Up to 6 most recent memory beats from this rivalry, newest first.",
               ),
           })
           .describe(
@@ -1357,7 +1408,14 @@ export const GeneratePromoResponse = zod.object({
     .describe(
       "AI's guess at which rivalry this generation belongs to. Used to pre-select an existing rivalry in the file-to-rivalry dialog. The user always confirms before any filing happens.",
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -1375,7 +1433,9 @@ export const bookerChatBodyCurrentDateDayMax = 6;
 
 export const bookerChatBodyUpcomingEventsMax = 5;
 
-export const bookerChatBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const bookerChatBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const bookerChatBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const bookerChatBodyActiveRivalryMemoriesMax = 5;
 
@@ -1550,11 +1610,18 @@ export const BookerChatBody = zod.object({
             .describe(
               'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
             ),
+          sides: zod
+            .array(zod.string())
+            .max(bookerChatBodyActiveRivalryMemoriesItemSidesMax)
+            .optional()
+            .describe(
+              'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+            ),
           beats: zod
             .array(zod.string())
             .max(bookerChatBodyActiveRivalryMemoriesItemBeatsMax)
             .describe(
-              "Up to 3 most recent memory beats from this rivalry, newest first.",
+              "Up to 6 most recent memory beats from this rivalry, newest first.",
             ),
         })
         .describe(
@@ -1669,7 +1736,14 @@ export const BookerChatBody = zod.object({
 
 export const BookerChatResponse = zod.object({
   message: zod.string(),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -1696,7 +1770,16 @@ export const SummarizeChatResponse = zod
       .describe(
         "100-150 token plain-text summary of the archived messages. Decisions, facts, and ongoing context only — no small talk.",
       ),
-    _usage: TokenUsageSchema,
+    _usage: zod
+      .object({
+        promptTokens: zod.number().optional(),
+        completionTokens: zod.number().optional(),
+        totalTokens: zod.number().optional(),
+      })
+      .optional()
+      .describe(
+        "Token consumption reported by the model for a single API call.",
+      ),
   })
   .describe("A short compressed memory of archived chat messages.");
 
@@ -1715,7 +1798,9 @@ export const suggestChapterBodyCurrentDateDayMax = 6;
 
 export const suggestChapterBodyUpcomingEventsMax = 5;
 
-export const suggestChapterBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const suggestChapterBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const suggestChapterBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const suggestChapterBodyActiveRivalryMemoriesMax = 5;
 
@@ -1875,11 +1960,18 @@ export const SuggestChapterBody = zod
               .describe(
                 'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
               ),
+            sides: zod
+              .array(zod.string())
+              .max(suggestChapterBodyActiveRivalryMemoriesItemSidesMax)
+              .optional()
+              .describe(
+                'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+              ),
             beats: zod
               .array(zod.string())
               .max(suggestChapterBodyActiveRivalryMemoriesItemBeatsMax)
               .describe(
-                "Up to 3 most recent memory beats from this rivalry, newest first.",
+                "Up to 6 most recent memory beats from this rivalry, newest first.",
               ),
           })
           .describe(
@@ -2082,7 +2174,14 @@ export const SuggestChapterResponse = zod.object({
     .describe(
       "Current position in the user's universe timeline. Abstract — no real year, just month\/week\/day.",
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -2100,7 +2199,9 @@ export const generateIssueBodyCurrentDateDayMax = 6;
 
 export const generateIssueBodyUpcomingEventsMax = 5;
 
-export const generateIssueBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const generateIssueBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const generateIssueBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const generateIssueBodyActiveRivalryMemoriesMax = 5;
 
@@ -2258,11 +2359,18 @@ export const GenerateIssueBody = zod
               .describe(
                 'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
               ),
+            sides: zod
+              .array(zod.string())
+              .max(generateIssueBodyActiveRivalryMemoriesItemSidesMax)
+              .optional()
+              .describe(
+                'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+              ),
             beats: zod
               .array(zod.string())
               .max(generateIssueBodyActiveRivalryMemoriesItemBeatsMax)
               .describe(
-                "Up to 3 most recent memory beats from this rivalry, newest first.",
+                "Up to 6 most recent memory beats from this rivalry, newest first.",
               ),
           })
           .describe(
@@ -2473,7 +2581,14 @@ export const GenerateIssueResponse = zod.object({
     )
     .min(generateIssueResponseFeaturesMin)
     .max(generateIssueResponseFeaturesMax),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -2491,7 +2606,9 @@ export const generateRumorBodyCurrentDateDayMax = 6;
 
 export const generateRumorBodyUpcomingEventsMax = 5;
 
-export const generateRumorBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const generateRumorBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const generateRumorBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const generateRumorBodyActiveRivalryMemoriesMax = 5;
 
@@ -2657,11 +2774,18 @@ export const GenerateRumorBody = zod.object({
             .describe(
               'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
             ),
+          sides: zod
+            .array(zod.string())
+            .max(generateRumorBodyActiveRivalryMemoriesItemSidesMax)
+            .optional()
+            .describe(
+              'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+            ),
           beats: zod
             .array(zod.string())
             .max(generateRumorBodyActiveRivalryMemoriesItemBeatsMax)
             .describe(
-              "Up to 3 most recent memory beats from this rivalry, newest first.",
+              "Up to 6 most recent memory beats from this rivalry, newest first.",
             ),
         })
         .describe(
@@ -2792,7 +2916,14 @@ export const GenerateRumorResponse = zod.object({
     .describe(
       'Attribution like \"Anonymous Backstage Source\" or \"Locker Room Insider\".',
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -2903,7 +3034,14 @@ export const LabelEntryResponse = zod.object({
   rationale: zod
     .string()
     .describe("One sentence explaining why this chapter type fits."),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -2921,7 +3059,9 @@ export const blowoffScoreBodyCurrentDateDayMax = 6;
 
 export const blowoffScoreBodyUpcomingEventsMax = 5;
 
-export const blowoffScoreBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const blowoffScoreBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const blowoffScoreBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const blowoffScoreBodyActiveRivalryMemoriesMax = 5;
 
@@ -3081,11 +3221,18 @@ export const BlowoffScoreBody = zod
               .describe(
                 'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
               ),
+            sides: zod
+              .array(zod.string())
+              .max(blowoffScoreBodyActiveRivalryMemoriesItemSidesMax)
+              .optional()
+              .describe(
+                'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+              ),
             beats: zod
               .array(zod.string())
               .max(blowoffScoreBodyActiveRivalryMemoriesItemBeatsMax)
               .describe(
-                "Up to 3 most recent memory beats from this rivalry, newest first.",
+                "Up to 6 most recent memory beats from this rivalry, newest first.",
               ),
           })
           .describe(
@@ -3248,7 +3395,14 @@ export const BlowoffScoreResponse = zod.object({
     .describe(
       "1-2 sentences explaining the score. Plain, direct, kayfabe voice.",
     ),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });
 
 /**
@@ -3266,7 +3420,9 @@ export const distillMemoriesBodyCurrentDateDayMax = 6;
 
 export const distillMemoriesBodyUpcomingEventsMax = 5;
 
-export const distillMemoriesBodyActiveRivalryMemoriesItemBeatsMax = 3;
+export const distillMemoriesBodyActiveRivalryMemoriesItemSidesMax = 2;
+
+export const distillMemoriesBodyActiveRivalryMemoriesItemBeatsMax = 6;
 
 export const distillMemoriesBodyActiveRivalryMemoriesMax = 5;
 
@@ -3426,11 +3582,18 @@ export const DistillMemoriesBody = zod
               .describe(
                 'Display title or matchup line for the rivalry, e.g. \"BLOODLINE VS CODY RHODES\".',
               ),
+            sides: zod
+              .array(zod.string())
+              .max(distillMemoriesBodyActiveRivalryMemoriesItemSidesMax)
+              .optional()
+              .describe(
+                'The two sides of this rivalry, each as a display string e.g. \"Roman Reigns\" or \"Roman Reigns & Solo Sikoa\".',
+              ),
             beats: zod
               .array(zod.string())
               .max(distillMemoriesBodyActiveRivalryMemoriesItemBeatsMax)
               .describe(
-                "Up to 3 most recent memory beats from this rivalry, newest first.",
+                "Up to 6 most recent memory beats from this rivalry, newest first.",
               ),
           })
           .describe(
@@ -3615,5 +3778,12 @@ export const DistillMemoriesResponse = zod.object({
       }),
     )
     .max(distillMemoriesResponseMemoriesMax),
-  _usage: TokenUsageSchema,
+  _usage: zod
+    .object({
+      promptTokens: zod.number().optional(),
+      completionTokens: zod.number().optional(),
+      totalTokens: zod.number().optional(),
+    })
+    .optional()
+    .describe("Token consumption reported by the model for a single API call."),
 });

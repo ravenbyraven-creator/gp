@@ -13,8 +13,13 @@ export interface ActiveRivalryMemory {
   /** Display title or matchup line for the rivalry, e.g. "BLOODLINE VS CODY RHODES". */
   rivalryTitle: string;
   /**
-   * Up to 3 most recent memory beats from this rivalry, newest first.
-   * @maxItems 3
+   * The two sides of this rivalry, each as a display string e.g. "Roman Reigns" or "Roman Reigns & Solo Sikoa".
+   * @maxItems 2
+   */
+  sides?: string[];
+  /**
+   * Up to 6 most recent memory beats from this rivalry, newest first.
+   * @maxItems 6
    */
   beats: string[];
 }

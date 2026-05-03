@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { TokenUsage } from "./tokenUsage";
 
 /**
  * A short compressed memory of archived chat messages.
@@ -12,4 +13,5 @@
 export interface ChatSummary {
   /** 100-150 token plain-text summary of the archived messages. Decisions, facts, and ongoing context only — no small talk. */
   summary: string;
+  _usage?: TokenUsage;
 }

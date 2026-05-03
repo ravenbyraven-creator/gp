@@ -62,6 +62,7 @@ export * from "./suggestedRivalryHintConfidence";
 export * from "./surpriseScene";
 export * from "./surpriseSceneBeatsItem";
 export * from "./surpriseSceneKind";
+export * from "./tokenUsage";
 export * from "./universeDate";
 export * from "./upcomingEvent";
 export * from "./wrestler";
