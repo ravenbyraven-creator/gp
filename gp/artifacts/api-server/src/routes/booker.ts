@@ -30,6 +30,14 @@ import { parseModelJson } from "../lib/model-json";
 
 const router: IRouter = Router();
 
+// Single source of truth for the model name. Change here to update every route.
+const BOOKER_MODEL = "gpt-5.4";
+
+// Maximum number of wrestlers to include in the roster section of the context
+// prompt. Prevents token overflow when the user has a large roster. Prefers
+// branded wrestlers (show-assigned) over free agents, matching the chat route.
+const ROSTER_CONTEXT_LIMIT = 30;
+
 const SYSTEM_PROMPT = `You are a senior WWE creative team head writer helping a player run their WWE 2K Universe Mode. You write short, structured, kayfabe booking notes that read like internal creative-team memos.
 
 Hard rules:
@@ -57,7 +65,7 @@ async function callOpenAIJson(
   maxCompletionTokens: number,
 ): Promise<{ data: unknown; usage: TokenUsage | null }> {
   const response = await openai.chat.completions.create({
-    model: "gpt-5.4",
+    model: BOOKER_MODEL,
     max_completion_tokens: maxCompletionTokens,
     messages,
     response_format: { type: "json_object" },
@@ -73,6 +81,24 @@ async function callOpenAIJson(
   return { data: parseModelJson(content), usage };
 }
 
+// Shared usage extractor — eliminates the repeated inline extraction block in
+// routes that call openai.chat.completions.create directly.
+function extractUsage(response: {
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  } | null;
+}): TokenUsage | null {
+  return response.usage
+    ? {
+        promptTokens: response.usage.prompt_tokens,
+        completionTokens: response.usage.completion_tokens,
+        totalTokens: response.usage.total_tokens,
+      }
+    : null;
+}
+
 function sendBookerError(
   req: Request,
   res: Response,
@@ -81,6 +107,16 @@ function sendBookerError(
   userMessage: string,
 ) {
   req.log.error({ err }, logMessage);
+  // Surface rate-limit errors explicitly. The OpenAI SDK sets a `status`
+  // property on its error objects — check for 429 before falling through to
+  // the generic 500 path so the client can show a clear, actionable message.
+  if (err != null && typeof err === "object" && "status" in err && (err as { status: unknown }).status === 429) {
+    res.status(429).json({
+      error: "RATE LIMITED",
+      detail: "Too many AI requests. Wait a moment and try again.",
+    });
+    return;
+  }
   const payload: { error: string; detail?: string } = { error: userMessage };
   if (process.env.NODE_ENV === "development" && err instanceof Error) {
     payload.detail = err.message;
@@ -183,8 +219,19 @@ function rosterContext(roster: Wrestler[] | undefined, shows: Show[] | undefined
   if (!roster || roster.length === 0) {
     return "ROSTER: The user has not added wrestlers yet. Use well-known current WWE talent.";
   }
+  // Cap roster to ROSTER_CONTEXT_LIMIT to prevent context-window overflow on
+  // large universes. Prefer show-assigned wrestlers over free agents — this
+  // mirrors the trimming that the chat route previously did ad-hoc (now
+  // centralised here so every route gets the same protection).
+  const toRender =
+    roster.length > ROSTER_CONTEXT_LIMIT
+      ? [
+          ...roster.filter(w => w.brand && w.brand !== "FREE_AGENT").slice(0, 24),
+          ...roster.filter(w => !w.brand || w.brand === "FREE_AGENT").slice(0, 6),
+        ].slice(0, ROSTER_CONTEXT_LIMIT)
+      : roster;
   const showNameById = new Map<string, string>((shows ?? []).map((s) => [s.id, s.name]));
-  const lines = roster.map((w) => {
+  const lines = toRender.map((w) => {
     const showLabel = w.showId ? showNameById.get(w.showId) : undefined;
     const tags = [showLabel ?? w.brand, w.alignment, w.role, w.status !== "ACTIVE" ? w.status : undefined].filter(Boolean).join(" / ");
     const notes = w.notes ? ` — ${w.notes}` : "";
@@ -681,17 +728,9 @@ router.post("/booker/chat", async (req: Request, res: Response) => {
   try {
     const body = BookerChatBody.parse(req.body ?? {});
 
-    const slimBody = {
-      ...body,
-      roster: body.roster && body.roster.length > 30
-        ? [
-            ...body.roster.filter(w => w.brand && w.brand !== "FREE_AGENT").slice(0, 24),
-            ...body.roster.filter(w => !w.brand || w.brand === "FREE_AGENT").slice(0, 6),
-          ].slice(0, 30)
-        : body.roster,
-    };
-
-    const context = buildContext({ ...slimBody, recentResults: extractRecentResults(req.body) });
+    // Roster trimming is now handled inside rosterContext() so no ad-hoc
+    // slimBody is needed here — every route gets the same cap automatically.
+    const context = buildContext({ ...body, recentResults: extractRecentResults(req.body) });
 
     const messages: OpenAIMessage[] = [
       { role: "system", content: CHAT_SYSTEM_PROMPT },
@@ -710,18 +749,12 @@ router.post("/booker/chat", async (req: Request, res: Response) => {
       })),
     ];
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: BOOKER_MODEL,
       max_completion_tokens: 1024,
       messages,
     });
     const message = response.choices[0]?.message?.content ?? "";
-    const usage: TokenUsage | null = response.usage
-      ? {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        }
-      : null;
+    const usage = extractUsage(response);
     const validated = BookerChatResponse.parse({ message });
     res.json({ ...validated, _usage: usage });
   } catch (err) {
@@ -754,7 +787,7 @@ router.post("/booker/summarize-season", async (req: Request, res: Response) => {
       : "";
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: BOOKER_MODEL,
       max_completion_tokens: 200,
       messages: [
         { role: "system", content: SUMMARIZE_SEASON_PROMPT },
@@ -766,13 +799,7 @@ router.post("/booker/summarize-season", async (req: Request, res: Response) => {
     });
 
     const summary = response.choices[0]?.message?.content?.trim() ?? "";
-    const usage: TokenUsage | null = response.usage
-      ? {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        }
-      : null;
+    const usage = extractUsage(response);
     return res.json({ summary, _usage: usage });
   } catch (err) {
     sendBookerError(req, res, err, "season summarize failed", "CHRONICLE LOST");
@@ -801,7 +828,7 @@ router.post("/booker/summarize-chat", async (req: Request, res: Response) => {
       .join("\n");
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: BOOKER_MODEL,
       max_completion_tokens: 200,
       messages: [
         { role: "system", content: SUMMARIZE_SYSTEM_PROMPT },
@@ -813,13 +840,7 @@ router.post("/booker/summarize-chat", async (req: Request, res: Response) => {
     });
 
     const summary = response.choices[0]?.message?.content?.trim() ?? "";
-    const usage: TokenUsage | null = response.usage
-      ? {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        }
-      : null;
+    const usage = extractUsage(response);
     const validated = SummarizeChatResponse.parse({ summary });
     return res.json({ ...validated, _usage: usage });
   } catch (err) {
@@ -1012,7 +1033,7 @@ router.post("/booker/label-entry", async (req: Request, res: Response) => {
     ].filter(Boolean).join("\n");
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: BOOKER_MODEL,
       max_completion_tokens: 64,
       messages: [
         { role: "system", content: LABEL_ENTRY_SYSTEM_PROMPT },
@@ -1021,13 +1042,7 @@ router.post("/booker/label-entry", async (req: Request, res: Response) => {
     });
 
     const raw = response.choices[0]?.message?.content ?? "{}";
-    const usage: TokenUsage | null = response.usage
-      ? {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        }
-      : null;
+    const usage = extractUsage(response);
     const data = parseModelJson(raw) as Record<string, unknown>;
     if (!(CHAPTER_TYPES as readonly string[]).includes(data.chapterType as string)) {
       data.chapterType = "ESCALATION";
@@ -1077,7 +1092,7 @@ router.post("/booker/blowoff-score", async (req: Request, res: Response) => {
       : "No rivalry context provided.";
 
     const response = await openai.chat.completions.create({
-      model: "gpt-5.4",
+      model: BOOKER_MODEL,
       max_completion_tokens: 120,
       messages: [
         { role: "system", content: BLOWOFF_SCORE_SYSTEM_PROMPT },
@@ -1087,13 +1102,7 @@ router.post("/booker/blowoff-score", async (req: Request, res: Response) => {
     });
 
     const raw = response.choices[0]?.message?.content ?? "{}";
-    const usage: TokenUsage | null = response.usage
-      ? {
-          promptTokens: response.usage.prompt_tokens,
-          completionTokens: response.usage.completion_tokens,
-          totalTokens: response.usage.total_tokens,
-        }
-      : null;
+    const usage = extractUsage(response);
     const data = parseModelJson(raw) as Record<string, unknown>;
     data.score = Math.max(0, Math.min(100, Number(data.score) || 0));
     const validated = BlowoffScoreResponse.parse(data);

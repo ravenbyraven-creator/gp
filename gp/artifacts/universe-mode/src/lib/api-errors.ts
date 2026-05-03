@@ -21,6 +21,10 @@ export function describeApiError(error: unknown): string {
 
   if (serverError) return serverError;
 
+  if (status === 429) {
+    return "Too many AI requests. Give it a moment and try again.";
+  }
+
   if (status === 401 || status === 403) {
     return "The AI server rejected the request. Check the API credentials for this environment.";
   }
