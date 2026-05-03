@@ -1,0 +1,164 @@
+You previously performed a full audit of my app “Gorilla Position.” I now want to fix and improve the app in a structured, phased approach.
+
+IMPORTANT GLOBAL RULES:
+
+* Do NOT rewrite the entire app at once
+* Do NOT introduce new features unless explicitly required for fixes
+* Do NOT remove core functionality
+* Prioritize stability, clarity, and maintainability
+* Keep changes incremental and explain everything clearly
+
+---
+
+PHASE 1 — CRITICAL STABILITY & DATA INTEGRITY
+
+Focus ONLY on fixing issues that can corrupt data, break logic, or damage user trust.
+
+Issues to fix:
+
+* B-01 (useLocalStorage stale updater)
+* B-02 (stale closure in session handling)
+* S-01 (undo not restoring full state)
+* S-03 (stale archive pointer)
+* B-04 (year handling bug in date logic)
+* B-05 (inefficient 365-iteration loops)
+* B-07 (duplicate magazine issue race condition)
+
+For this phase:
+
+* Make minimal, targeted fixes
+* Do NOT refactor unrelated systems
+* Ensure all fixes are safe and backward-compatible
+
+Output requirements:
+
+* Show each fix clearly
+* Explain what changed and why
+* Confirm no regressions were introduced
+
+---
+
+PHASE 2 — PERFORMANCE & CLEANUP
+
+Focus on improving efficiency and removing unnecessary complexity.
+
+Areas to address:
+
+* P-01 (large history serialization issues)
+* P-02 (expensive context building)
+* P-03 (inefficient ID lookups)
+* R-02 (duplicate constants like CHAPTER_TYPES)
+* R-03 (repeated buildBookerContext calls)
+* R-04 (lack of memoization)
+* R-06 (stale token usage logging)
+
+Goals:
+
+* Reduce unnecessary computation
+* Improve responsiveness
+* Simplify repeated logic
+
+Rules:
+
+* Avoid breaking existing behavior
+* Prefer small optimizations over large rewrites
+
+---
+
+PHASE 3 — INPUT VALIDATION & SAFETY
+
+Focus on making the app more robust against bad or inconsistent data.
+
+Issues to address:
+
+* I-01 (no enforcement of universeBible length)
+* I-02 (no roster schema validation)
+* I-03 (no backup version validation)
+* I-04 (manual participant parsing issues)
+* I-05 (unsafe result extraction)
+* SEC-01 (missing request validation)
+* SEC-05 (no backup version checking)
+
+Goals:
+
+* Prevent corrupted data
+* Ensure consistent internal state
+* Add validation where needed
+
+---
+
+PHASE 4 — ARCHITECTURE & MAINTAINABILITY
+
+Focus on long-term code health and scalability.
+
+Issues to address:
+
+* A-01 (RivalryDetail.tsx too large)
+* A-02 (booker.ts too large)
+* A-03 (misplaced buildBookerContext)
+* A-04 (manual storage key tracking)
+* A-05 (no global AI busy state)
+* A-06 (duplicate rivalry representations)
+* R-01 (duplicate type definitions)
+
+Goals:
+
+* Improve code organization
+* Reduce coupling
+* Make the app easier to maintain and extend
+
+Rules:
+
+* Break changes into small steps
+* Do NOT rewrite everything at once
+* Preserve behavior while improving structure
+
+---
+
+PHASE 5 — UX CONSISTENCY & LOGIC POLISH
+
+Focus on improving user experience and fixing logical inconsistencies.
+
+Issues to address:
+
+* U-01 (season change async issue)
+* U-02 (rivalry reactivation logic bug)
+* U-03 (season boundary inconsistency)
+* U-04 (undo UX confusion)
+* U-05 (inconsistent confirm dialogs)
+* SEC-04 (silent failure on magazine generation)
+
+Goals:
+
+* Make behavior predictable
+* Improve user trust
+* Ensure UI consistency
+
+---
+
+PHASE 6 — FINAL VALIDATION & HARDENING
+
+After all phases are complete:
+
+* Re-check for regressions across all systems
+* Ensure all fixes work together correctly
+* Identify any remaining edge cases
+* Suggest final small improvements (NO major rewrites)
+
+---
+
+EXECUTION INSTRUCTIONS:
+
+1. Do NOT execute all phases at once
+2. Wait for me to tell you which phase to begin
+3. When working on a phase:
+
+   * Only focus on that phase
+   * Keep changes minimal and controlled
+   * Explain everything clearly
+
+---
+
+GOAL:
+
+Turn the app into a stable, performant, and maintainable system that enhances WWE 2K26 Universe Mode storytelling without introducing unnecessary complexity or breaking existing functionality.
