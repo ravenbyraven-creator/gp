@@ -8,9 +8,14 @@ import {
   useSeasonStart,
   useUniverseDate,
   useEvents,
+  useUniverseBible,
+  useSeasonChronicles,
+  useHistory,
+  useChampionships,
   APP_STORAGE_KEYS,
 } from "@/lib/storage";
 import { MONTH_LABELS, seasonYearOf } from "@/lib/calendar";
+
 import { useTokenLog, deriveTokenStats, formatTokenCount, ENDPOINT_LABELS } from "@/lib/tokens";
 import { CHAIRMEN } from "@/lib/chairmen";
 import { FONT_OPTIONS } from "@/lib/fonts";
@@ -39,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const EXPORT_VERSION = 1;
+const BIBLE_MAX = 600;
 
 function todaySlug() {
   return new Date().toISOString().slice(0, 10);
@@ -87,19 +93,71 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   const [seasonStart, setSeasonStart] = useSeasonStart();
   const [date, setDate] = useUniverseDate();
   const [, setEvents] = useEvents();
+  const [universeBible, setUniverseBible] = useUniverseBible();
+  const [seasonChronicles, setSeasonChronicles] = useSeasonChronicles();
+  const [history] = useHistory();
+  const [championships] = useChampionships();
   const [newSeasonConfirmOpen, setNewSeasonConfirmOpen] = useState(false);
 
   const currentSeasonYear = seasonYearOf(date, seasonStart);
   const nextSeasonYear = currentSeasonYear + 1;
   const nextSeasonMonthLabel = MONTH_LABELS[seasonStart - 1];
 
-  const handleStartNewSeason = () => {
+  const handleStartNewSeason = async () => {
     setDate({ year: nextSeasonYear, month: seasonStart, week: 1, day: 1 });
     setEvents([]);
     setNewSeasonConfirmOpen(false);
     toast.success(`Season ${nextSeasonYear + 1} started`, {
       description: `Universe date reset to ${nextSeasonMonthLabel} · Week 1. PLE schedule cleared.`,
     });
+
+    const historyItems = history
+      .slice(0, 50)
+      .map(h => {
+        if (h.kind === "log") return h.text.slice(0, 100);
+        if (h.kind === "storyline") return `${h.data.feud}: ${h.data.headline}`;
+        if (h.kind === "show") return `${h.data.showName}: ${h.data.headline}`;
+        if (h.kind === "surprise") return h.data.headline;
+        if (h.kind === "promo") return `${h.data.wrestlerName}: ${h.data.headline}`;
+        return "";
+      })
+      .filter(Boolean);
+
+    if (historyItems.length === 0) return;
+
+    try {
+      const resp = await fetch("/api/booker/summarize-season", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          historyItems,
+          seasonYear: currentSeasonYear,
+          championships: championships
+            .filter(c => c.active !== false)
+            .map(c => {
+              const champs = (c.currentChampionIds ?? [])
+                .map(id => roster.find(w => w.id === id)?.name)
+                .filter(Boolean)
+                .join(" & ");
+              return `${c.name}: ${champs || "VACANT"}`;
+            }),
+        }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.summary) {
+          setSeasonChronicles(prev => [
+            ...prev,
+            { seasonYear: currentSeasonYear, summary: data.summary, generatedAt: Date.now() },
+          ]);
+          toast.success("Season chronicle saved", {
+            description: `A recap of Season ${currentSeasonYear + 1} has been filed to your universe history.`,
+          });
+        }
+      }
+    } catch {
+      // Chronicle generation is non-critical
+    }
   };
 
   const [tokenLog, setTokenLog] = useTokenLog();
@@ -304,6 +362,54 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
           </SettingsRow>
 
         </SettingsSection>
+
+        {/* ── Universe Bible ── */}
+        <SettingsSection label="Universe Bible">
+          <SettingsRow
+            label="Canon Rules"
+            hint="Permanent facts the AI reads before every response. What's established, what's locked in, what's off-limits."
+          >
+            <div className="space-y-2">
+              <textarea
+                value={universeBible}
+                onChange={e => setUniverseBible(e.target.value.slice(0, BIBLE_MAX))}
+                placeholder={`e.g. Roman Reigns retired at WrestleMania. Cody Rhodes is the top babyface. No Shield reunions.`}
+                rows={4}
+                className="w-full bg-background border border-border rounded px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/40 resize-none focus:outline-none focus:border-foreground/40 leading-relaxed font-sans"
+              />
+              <div className="flex justify-between items-center">
+                <p className="text-[10px] text-muted-foreground/50 leading-snug">
+                  Keep it short and factual. The AI will never contradict these rules.
+                </p>
+                <span className={cn(
+                  "text-[10px] font-mono shrink-0 ml-3",
+                  universeBible.length > BIBLE_MAX * 0.9 ? "text-amber-400" : "text-muted-foreground/40"
+                )}>
+                  {universeBible.length}/{BIBLE_MAX}
+                </span>
+              </div>
+            </div>
+          </SettingsRow>
+        </SettingsSection>
+
+        {/* ── Season History ── */}
+        {seasonChronicles.length > 0 && (
+          <SettingsSection label="Season History">
+            <div className="space-y-2">
+              {[...seasonChronicles]
+                .sort((a, b) => b.seasonYear - a.seasonYear)
+                .slice(0, 5)
+                .map(c => (
+                  <div key={c.seasonYear} className="bg-card border border-border rounded-lg p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+                      Season {c.seasonYear + 1}
+                    </p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{c.summary}</p>
+                  </div>
+                ))}
+            </div>
+          </SettingsSection>
+        )}
 
         {/* ── App Preferences ── */}
         <SettingsSection label="App Preferences">

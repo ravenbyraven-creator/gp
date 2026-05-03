@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGenerateStoryline, useBookShow, useSurpriseMe, useGeneratePromo } from "@workspace/api-client-react";
-import { useRoster, useChairman, useHistory, useShows, useUniverseDate, useEvents, useRivalries, useMemories, useChampionships, useStables, buildBookerContext, type RivalryEntry } from "@/lib/storage";
+import { useRoster, useChairman, useHistory, useShows, useUniverseDate, useEvents, useRivalries, useMemories, useChampionships, useStables, useUniverseBible, useSeasonChronicles, buildBookerContext, type RivalryEntry } from "@/lib/storage";
 import { useIssues } from "@/lib/news";
 import { useTokenLog, recordTokenUsage } from "@/lib/tokens";
 import { ResultScreen } from "./ResultScreen";
@@ -72,6 +72,8 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
   const [issues] = useIssues();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
 
   const [activeEntry, setActiveEntry] = useState<RivalryEntry | null>(null);
   const [promoWrestler, setPromoWrestler] = useState<string>("");
@@ -102,7 +104,7 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
       toast.error("Roster too small", { description: "Add more superstars in the Roster tab first." });
       return;
     }
-    const payload = { data: buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables) };
+    const payload = { data: buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles) };
     const onSuccess = (data: any) => {
       recordTokenUsage(tokenLog, setTokenLog, type as any, data._usage, universeDate ?? undefined);
       const newEntry = { kind: type, id: crypto.randomUUID(), createdAt: Date.now(), universeDate, data } as RivalryEntry;
@@ -137,7 +139,7 @@ export function CreativeDesk({ onNavigate }: { onNavigate?: (tab: AppTab) => voi
     if (!promoWrestler) { toast.error("Pick a wrestler first."); return; }
     const payload = {
       data: {
-        ...buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables),
+        ...buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles),
         wrestlerName: promoWrestler,
         tone: promoTone,
       },

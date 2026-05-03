@@ -328,6 +328,26 @@ function recentResultsContext(results: RecentResultsShow[] | undefined): string 
   return `RECENT MATCH RESULTS — honor this continuity. Winners should feel strong; losers may seek rematches:\n${lines.join("\n")}`;
 }
 
+function universeBibleContext(bible: string | undefined): string {
+  if (!bible || !bible.trim()) return "";
+  return `UNIVERSE CANON — the following facts are permanently established in this universe. Never contradict them:\n${bible.trim()}`;
+}
+
+function seasonChroniclesContext(chronicles: Array<{ seasonYear: number; summary: string }> | undefined): string {
+  if (!chronicles || chronicles.length === 0) return "";
+  const lines = [...chronicles]
+    .sort((a, b) => b.seasonYear - a.seasonYear)
+    .slice(0, 3)
+    .map((c) => `Season ${c.seasonYear + 1}: ${c.summary}`);
+  return `PREVIOUS SEASONS — use this to avoid repeating feuds, title reigns, or story beats that already ran:\n${lines.join("\n")}`;
+}
+
+function pinnedCanonContext(pinned: string[] | undefined): string {
+  if (!pinned || pinned.length === 0) return "";
+  const lines = pinned.map((p) => `- ${p}`).join("\n");
+  return `PINNED CANON — these moments are permanently filed. Never contradict them:\n${lines}`;
+}
+
 function buildContext(body: {
   roster?: Wrestler[];
   shows?: Show[];
@@ -341,12 +361,21 @@ function buildContext(body: {
   championships?: Championship[];
   stables?: Stable[];
   recentResults?: RecentResultsShow[];
+  universeBible?: string;
+  seasonChronicles?: Array<{ seasonYear: number; summary: string }>;
+  pinnedCanon?: string[];
 }): string {
   const parts = [
     chairmanContext(body.chairman),
+  ];
+  const bibleSection = universeBibleContext(body.universeBible);
+  if (bibleSection) parts.push(bibleSection);
+  const chroniclesSection = seasonChroniclesContext(body.seasonChronicles);
+  if (chroniclesSection) parts.push(chroniclesSection);
+  parts.push(
     showsContext(body.shows),
     rosterContext(body.roster, body.shows),
-  ];
+  );
   const champsSection = championshipsContext(body.championships, body.roster);
   if (champsSection) parts.push(champsSection);
   const stablesSection = stablesContext(body.stables, body.roster);
@@ -360,6 +389,8 @@ function buildContext(body: {
   if (upcomingSection) parts.push(upcomingSection);
   const memoriesSection = activeRivalryMemoriesContext(body.activeRivalryMemories);
   if (memoriesSection) parts.push(memoriesSection);
+  const pinnedSection = pinnedCanonContext(body.pinnedCanon);
+  if (pinnedSection) parts.push(pinnedSection);
   const magazineSection = recentMagazineHeadlinesContext(body.recentMagazineHeadlines);
   if (magazineSection) parts.push(magazineSection);
   const resultsSection = recentResultsContext(body.recentResults);
@@ -695,6 +726,57 @@ router.post("/booker/chat", async (req: Request, res: Response) => {
     res.json({ ...validated, _usage: usage });
   } catch (err) {
     sendBookerError(req, res, err, "booker chat failed", "CREATIVE OVERRULED");
+  }
+});
+
+const SUMMARIZE_SEASON_PROMPT = `You are a WWE creative historian summarizing a completed season of Universe Mode for long-term memory. Write a single dense paragraph (max 120 words).
+
+Rules:
+- Past tense, factual, no filler words.
+- Include: who held major titles and for how long, who the top stars were, key story beats and turns, major PLE results, any notable debuts or retirements.
+- Focus on facts that would prevent a writer from repeating the same feuds, reigns, or story beats next season.
+- Output ONLY the plain-text paragraph. No headers, no lists, no markdown.`;
+
+router.post("/booker/summarize-season", async (req: Request, res: Response) => {
+  try {
+    const body = req.body ?? {};
+    const historyItems: string[] = Array.isArray(body.historyItems) ? body.historyItems : [];
+    const seasonYear: number = typeof body.seasonYear === "number" ? body.seasonYear : 0;
+    const championships: string[] = Array.isArray(body.championships) ? body.championships : [];
+
+    if (historyItems.length === 0) {
+      return res.json({ summary: "" });
+    }
+
+    const historyText = historyItems.slice(0, 40).join("\n");
+    const champText = championships.length > 0
+      ? `\nChampionship picture at season end:\n${championships.join("\n")}`
+      : "";
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.4",
+      max_completion_tokens: 200,
+      messages: [
+        { role: "system", content: SUMMARIZE_SEASON_PROMPT },
+        {
+          role: "user",
+          content: `Season ${seasonYear + 1} (Universe Year ${seasonYear}) canon events:\n${historyText}${champText}\n\nWrite the season summary paragraph.`,
+        },
+      ],
+    });
+
+    const summary = response.choices[0]?.message?.content?.trim() ?? "";
+    const usage: TokenUsage | null = response.usage
+      ? {
+          promptTokens: response.usage.prompt_tokens,
+          completionTokens: response.usage.completion_tokens,
+          totalTokens: response.usage.total_tokens,
+        }
+      : null;
+    return res.json({ summary, _usage: usage });
+  } catch (err) {
+    sendBookerError(req, res, err, "season summarize failed", "CHRONICLE LOST");
+    return;
   }
 });
 

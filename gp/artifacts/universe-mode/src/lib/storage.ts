@@ -74,13 +74,13 @@ export type ShowDraft = {
 };
 
 export type RivalryEntry =
-  | { kind: "storyline"; id: string; createdAt: number; universeDate?: UniverseDate; data: StorylineScene; chapter?: ChapterType }
-  | { kind: "show"; id: string; createdAt: number; universeDate?: UniverseDate; data: ShowCard; chapter?: ChapterType }
-  | { kind: "surprise"; id: string; createdAt: number; universeDate?: UniverseDate; data: SurpriseScene; chapter?: ChapterType }
-  | { kind: "promo"; id: string; createdAt: number; universeDate?: UniverseDate; data: PromoScript; chapter?: ChapterType }
-  | { kind: "log"; id: string; createdAt: number; universeDate?: UniverseDate; text: string; chapter?: ChapterType }
-  | { kind: "magazine"; id: string; createdAt: number; universeDate?: UniverseDate; data: MagazineRivalryEntryData; chapter?: ChapterType }
-  | { kind: "results"; id: string; createdAt: number; universeDate?: UniverseDate; data: ShowResultsEntryData; chapter?: ChapterType };
+  | { kind: "storyline"; id: string; createdAt: number; universeDate?: UniverseDate; data: StorylineScene; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "show"; id: string; createdAt: number; universeDate?: UniverseDate; data: ShowCard; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "surprise"; id: string; createdAt: number; universeDate?: UniverseDate; data: SurpriseScene; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "promo"; id: string; createdAt: number; universeDate?: UniverseDate; data: PromoScript; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "log"; id: string; createdAt: number; universeDate?: UniverseDate; text: string; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "magazine"; id: string; createdAt: number; universeDate?: UniverseDate; data: MagazineRivalryEntryData; chapter?: ChapterType; pinned?: boolean }
+  | { kind: "results"; id: string; createdAt: number; universeDate?: UniverseDate; data: ShowResultsEntryData; chapter?: ChapterType; pinned?: boolean };
 
 const LOCAL_STORAGE_EVENT = "umc.localstorage";
 
@@ -362,6 +362,31 @@ export function useSeasonStart() {
   return useLocalStorage<number>("umc.seasonStart", 1);
 }
 
+/**
+ * Freeform text the user writes as permanent canon constraints.
+ * Injected into every AI call as a hard-rule block.
+ */
+export function useUniverseBible() {
+  return useLocalStorage<string>("umc.universeBible", "");
+}
+
+export type SeasonChronicle = {
+  /** Universe year the season covered (0-indexed, same as UniverseDate.year). */
+  seasonYear: number;
+  /** AI-generated prose summary of the season. */
+  summary: string;
+  /** Real-world timestamp of generation. */
+  generatedAt: number;
+};
+
+/**
+ * One entry per completed season, auto-generated when "Start New Season" fires.
+ * Injected into AI calls as a PREVIOUS SEASONS block.
+ */
+export function useSeasonChronicles() {
+  return useLocalStorage<SeasonChronicle[]>("umc.seasonChronicles", []);
+}
+
 export const APP_STORAGE_KEYS: string[] = [
   "umc.roster",
   "umc.shows",
@@ -401,6 +426,8 @@ export const APP_STORAGE_KEYS: string[] = [
   "umc.inboxLastFire",
   "umc.inboxReplies",
   "umc.seasonStart",
+  "umc.universeBible",
+  "umc.seasonChronicles",
 ];
 
 export function useChampionLookup(): Map<string, Championship[]> {
@@ -438,6 +465,8 @@ export function buildBookerContext(
   championships: Championship[] = [],
   stables: Stable[] = [],
   maxRoster?: number,
+  universeBible?: string,
+  seasonChronicles: SeasonChronicle[] = [],
 ) {
   const lightShows: Show[] = shows.map(s => ({
     id: s.id,
@@ -450,8 +479,40 @@ export function buildBookerContext(
     h => h.kind === "storyline" || h.kind === "show" || h.kind === "surprise"
   );
 
+  // Phase 4: Build active participant name set for relevance-based history scoring
+  const activeParticipantNames = new Set<string>();
+  for (const r of rivalries) {
+    if (r.status !== "ACTIVE") continue;
+    for (const side of r.sides) {
+      for (const wId of side.wrestlerIds) {
+        const name = roster.find(w => w.id === wId)?.name;
+        if (name) activeParticipantNames.add(name.toLowerCase());
+      }
+    }
+  }
+
+  const scoreHistoryEntry = (h: RivalryEntry): number => {
+    let score = 0;
+    if (h.kind === "storyline") {
+      for (const p of h.data.participants) {
+        if (activeParticipantNames.has(p.toLowerCase())) score += 3;
+      }
+    } else if (h.kind === "show") {
+      for (const m of h.data.matches) {
+        for (const part of m.match.split(/\s+vs\s+/i)) {
+          if (activeParticipantNames.has(part.trim().toLowerCase())) score += 1;
+        }
+      }
+    } else if (h.kind === "surprise") {
+      score += 1;
+    }
+    return score;
+  };
+
   const deriveFromHistory = () => {
-    return rivalryHistory.slice(0, 5).map(h => {
+    const scored = rivalryHistory.map((h, idx) => ({ h, score: scoreHistoryEntry(h), idx }));
+    scored.sort((a, b) => b.score - a.score || a.idx - b.idx);
+    return scored.slice(0, 8).map(({ h }) => {
       if (h.kind === "storyline") {
         const lastBeat = h.data.beats[h.data.beats.length - 1];
         return {
@@ -477,6 +538,20 @@ export function buildBookerContext(
       };
     });
   };
+
+  // Phase 3: Pinned canon entries — always surfaced to AI regardless of age
+  const pinnedCanon = history
+    .filter(h => h.pinned)
+    .map(h => {
+      if (h.kind === "log") return h.text.slice(0, 150);
+      if (h.kind === "storyline") return `${h.data.feud}: ${h.data.headline}`;
+      if (h.kind === "show") return `${h.data.showName}: ${h.data.headline}`;
+      if (h.kind === "surprise") return h.data.headline;
+      if (h.kind === "promo") return `${h.data.wrestlerName}: ${h.data.headline}`;
+      if (h.kind === "magazine") return h.data.coverHeadline;
+      return "";
+    })
+    .filter(Boolean);
 
   const recentEvents = history
     .filter((h): h is Extract<RivalryEntry, { kind: "log" }> => h.kind === "log")
@@ -629,6 +704,14 @@ export function buildBookerContext(
     championships: lightChampionships,
     stables: lightStables,
     recentResults: recentResults.length > 0 ? recentResults : undefined,
+    universeBible: universeBible && universeBible.trim() ? universeBible.trim() : undefined,
+    seasonChronicles: seasonChronicles.length > 0
+      ? [...seasonChronicles]
+          .sort((a, b) => b.seasonYear - a.seasonYear)
+          .slice(0, 3)
+          .map(s => ({ seasonYear: s.seasonYear, summary: s.summary }))
+      : undefined,
+    pinnedCanon: pinnedCanon.length > 0 ? pinnedCanon : undefined,
   };
 }
 

@@ -29,6 +29,8 @@ import {
   useChampionships,
   useStables,
   buildBookerContext,
+  useUniverseBible,
+  useSeasonChronicles,
   type RivalryEntry,
 } from "@/lib/storage";
 import { useIssues } from "@/lib/news";
@@ -100,6 +102,8 @@ export function RoadToPLE({ open, onOpenChange, onNavigate }: RoadToPLEProps) {
   const [memories] = useMemories();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
   const [issues] = useIssues();
 
   const storylineMutation = useGenerateStoryline();
@@ -217,7 +221,7 @@ export function RoadToPLE({ open, onOpenChange, onNavigate }: RoadToPLEProps) {
       toast.error("Roster too small", { description: "Add more superstars in the Roster tab first." });
       return;
     }
-    const ctx = buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables);
+    const ctx = buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles);
     storylineMutation.mutate(
       { data: ctx },
       {

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Trash2, User, X, Plus, Sparkles, ArrowUp, ArrowDown, Loader2, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { Trash2, User, X, Plus, Sparkles, ArrowUp, ArrowDown, Loader2, ChevronDown, ChevronRight, Check, Pin } from "lucide-react";
 import { toast } from "sonner";
 import {
   useSuggestChapter,
@@ -23,6 +23,8 @@ import {
   useEvents,
   useChampionships,
   useStables,
+  useUniverseBible,
+  useSeasonChronicles,
   useChampionLookup,
   useMatchResults,
   useFeuArcMilestones,
@@ -942,8 +944,15 @@ function TimelineEntryRow({ entry, currentChapter, onChangeChapter, isPending }:
 
 function HistoryTab({ entries }: { entries: RivalryEntry[] }) {
   const [issues] = useIssues();
+  const [, setHistory] = useHistory();
   const [activeIssueId, setActiveIssueId] = useState<string | null>(null);
   const activeIssue = activeIssueId ? (issues.find((i) => i.id === activeIssueId) ?? null) : null;
+
+  const handleTogglePin = (id: string) => {
+    setHistory(prev =>
+      prev.map(h => h.id === id ? { ...h, pinned: !h.pinned } : h)
+    );
+  };
 
   if (entries.length === 0) {
     return (
@@ -966,6 +975,7 @@ function HistoryTab({ entries }: { entries: RivalryEntry[] }) {
               key={e.id}
               entry={e}
               onOpenMagazine={e.kind === "magazine" ? () => setActiveIssueId(e.data.issueId) : undefined}
+              onTogglePin={() => handleTogglePin(e.id)}
             />
           ))}
         </AnimatePresence>
@@ -980,7 +990,7 @@ function HistoryTab({ entries }: { entries: RivalryEntry[] }) {
   );
 }
 
-function EntryCard({ entry, onOpenMagazine }: { entry: RivalryEntry; onOpenMagazine?: () => void }) {
+function EntryCard({ entry, onOpenMagazine, onTogglePin }: { entry: RivalryEntry; onOpenMagazine?: () => void; onTogglePin?: () => void }) {
   let typeLabel = "";
   let title = "";
   let sub = "";
@@ -1027,6 +1037,21 @@ function EntryCard({ entry, onOpenMagazine }: { entry: RivalryEntry; onOpenMagaz
             {formatDate(entry.universeDate)}
           </span>
         )}
+        {onTogglePin && (
+          <button
+            type="button"
+            onClick={onTogglePin}
+            title={entry.pinned ? "Unpin from AI context" : "Pin to AI context"}
+            className={cn(
+              "ml-auto p-1 rounded transition-colors",
+              entry.pinned
+                ? "text-foreground"
+                : "text-muted-foreground/30 hover:text-muted-foreground",
+            )}
+          >
+            <Pin className="w-3 h-3" style={entry.pinned ? { fill: "currentColor" } : {}} />
+          </button>
+        )}
       </div>
       <div className="font-display text-sm uppercase tracking-widest text-foreground leading-tight">
         {title}
@@ -1066,6 +1091,8 @@ function useAnalyzeBaseContext() {
   const [issues] = useIssues();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
   const currentChairman = chairman || CHAIRMEN[0];
   return useMemo(
     () =>
@@ -1081,8 +1108,11 @@ function useAnalyzeBaseContext() {
         issues,
         championships,
         stables,
+        undefined,
+        universeBible,
+        seasonChronicles,
       ),
-    [roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables],
+    [roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, universeBible, seasonChronicles],
   );
 }
 

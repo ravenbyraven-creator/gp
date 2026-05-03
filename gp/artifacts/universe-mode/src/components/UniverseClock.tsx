@@ -21,6 +21,8 @@ import {
   useTitleReigns,
   useShowDrafts,
   useSeasonStart,
+  useUniverseBible,
+  useSeasonChronicles,
 } from "@/lib/storage";
 import { ShowDraftLogger } from "./ShowDraftLogger";
 import {
@@ -82,6 +84,8 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const [memories] = useMemories();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
   const [matchResults] = useMatchResults();
   const [issues, setIssues] = useIssues();
   const [titleReigns] = useTitleReigns();
@@ -124,6 +128,9 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
       issues,
       championships,
       stables,
+      undefined,
+      universeBible,
+      seasonChronicles,
     );
 
     issueMutation.mutate(

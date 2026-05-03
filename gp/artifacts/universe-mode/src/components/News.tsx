@@ -14,6 +14,8 @@ import {
   useMemories,
   useChampionships,
   useStables,
+  useUniverseBible,
+  useSeasonChronicles,
   buildBookerContext,
 } from "@/lib/storage";
 import { useTokenLog, recordTokenUsage } from "@/lib/tokens";
@@ -112,6 +114,8 @@ export function News() {
   const [memories] = useMemories();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
 
   const [issues, setIssues] = useIssues();
   const [rumors, setRumors] = useRumors();
@@ -175,6 +179,9 @@ export function News() {
       issues,
       championships,
       stables,
+      undefined,
+      universeBible,
+      seasonChronicles,
     );
     issueMutation.mutate(
       { data: { ...ctx, issueNumber: nextIssueNumber } },
@@ -254,6 +261,9 @@ export function News() {
       issues,
       championships,
       stables,
+      undefined,
+      universeBible,
+      seasonChronicles,
     );
     rumorMutation.mutate(
       { data: ctx },

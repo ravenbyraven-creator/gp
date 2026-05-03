@@ -62,10 +62,21 @@ Model: `gpt-5.4`
 - **Build**: `cd gp && pnpm run build`
 - **Run**: `cd gp && PORT=5000 pnpm --filter @workspace/api-server run start` (API serves built frontend static files)
 
+## Memory System (4 Phases)
+
+All implemented. Every `buildBookerContext()` call now passes all four layers.
+
+1. **Universe Bible** (`umc.universeBible`) — freeform 600-char text, injected as `UNIVERSE CANON` block at the top of every AI prompt. Edited in Settings → Universe Bible.
+2. **Season Chronicles** (`umc.seasonChronicles: SeasonChronicle[]`) — auto-generated when "Start New Season" fires. Calls `POST /api/booker/summarize-season`, saves a prose recap of the concluded season. Injected as `PREVIOUS SEASONS` block. Displayed in Settings → Season History.
+3. **Pinned Entries** (`pinned?: boolean` on all `RivalryEntry` union variants) — pin button on every card in Rivalry History tab. Pinned entries always appear in AI context as `PINNED CANON`. Toggle via pin icon (filled = pinned).
+4. **Smarter History Slicing** — `buildBookerContext()` now scores `rivalryHistory` entries by participant overlap with active rivalries, sorts by relevance, takes top 8 (up from 5).
+
+New API endpoint: `POST /api/booker/summarize-season` — no Zod schema, inline validation only (bypass codegen).
+
 ## Important Conventions
 
 - No emojis, anywhere, ever
 - Monochrome visual system (no color except the NEWS tab)
-- All new API endpoints go in `lib/api-spec/openapi.yaml` first, then run codegen
+- All new API endpoints go in `lib/api-spec/openapi.yaml` first, then run codegen (exception: summarize-season uses inline validation to avoid codegen overhead)
 - localStorage is the persistence layer for all user data
 - See `gp/UNIVERSE_MODE_ASSISTANT.md` for full product spec and build conventions

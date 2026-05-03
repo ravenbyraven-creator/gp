@@ -9,7 +9,7 @@ import {
 import {
   useRoster, useChairman, useHistory, useShows,
   useUniverseDate, useEvents, useRivalries, useMemories,
-  useChampionships, useStables,
+  useChampionships, useStables, useUniverseBible, useSeasonChronicles,
   buildBookerContext, useChatSessions, useActiveChatSessionId,
   type ChatSession, type RivalryEntry,
 } from "@/lib/storage";
@@ -68,6 +68,8 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
   const [issues] = useIssues();
   const [championships] = useChampionships();
   const [stables] = useStables();
+  const [universeBible] = useUniverseBible();
+  const [seasonChronicles] = useSeasonChronicles();
 
   const currentChairman = chairman || CHAIRMEN[0];
   const activeRivalriesCount = history.filter(h => h.kind === "storyline").length;
@@ -382,7 +384,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
     const unarchivedMessages = updatedMessages.slice(archivedCount);
     const recentToSend = unarchivedMessages.slice(-RECENT_WINDOW);
 
-    const context = buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables);
+    const context = buildBookerContext(roster, currentChairman, history, shows, universeDate, events, rivalries, memories, issues, championships, stables, undefined, universeBible, seasonChronicles);
     chatMutation.mutate(
       {
         data: {
