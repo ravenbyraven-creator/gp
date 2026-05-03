@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   useBookerChat,
@@ -13,6 +13,8 @@ import {
   buildBookerContext, useChatSessions, useActiveChatSessionId,
   type ChatSession,
 } from "@/lib/storage";
+import { upcomingEvents as sortUpcoming } from "@/lib/calendar";
+import type { Rivalry } from "@/lib/rivalry";
 import { useTokenLog, recordTokenUsage } from "@/lib/tokens";
 import { useIssues } from "@/lib/news";
 import { CHAIRMEN } from "@/lib/chairmen";
@@ -35,12 +37,6 @@ function createSession(): ChatSession {
   return { id: crypto.randomUUID(), title: "New Chat", createdAt: now, updatedAt: now, messages: [] };
 }
 
-const SUGGESTIONS = [
-  "WHAT SHOULD CODY DO AFTER WRESTLEMANIA?",
-  "GIVE ME 3 IDEAS FOR LIV MORGAN'S NEXT FEUD",
-  "WHO SHOULD HEADLINE SUMMERSLAM?",
-  "BUILD A SLOW BURN FOR GUNTHER VS PRIEST",
-];
 
 interface ChatProps {
   fullScreen?: boolean;
@@ -74,6 +70,68 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
 
   const currentChairman = chairman || CHAIRMEN[0];
   const activeRivalriesCount = history.filter(h => h.kind === "storyline").length;
+
+  const suggestions = useMemo(() => {
+    const chips: string[] = [];
+
+    // 1. Active rivalries → suggest a next-chapter question
+    const activeRivs = (rivalries as Rivalry[]).filter(r => r.status === "ACTIVE");
+    for (const r of activeRivs.slice(0, 2)) {
+      const sides = (r as any).sides ?? [];
+      const nameA = sides[0]?.wrestlerIds?.[0]
+        ? (roster.find(w => w.id === sides[0].wrestlerIds[0])?.name ?? "")
+        : "";
+      const nameB = sides[1]?.wrestlerIds?.[0]
+        ? (roster.find(w => w.id === sides[1].wrestlerIds[0])?.name ?? "")
+        : "";
+      if (nameA && nameB) {
+        chips.push(`What should happen next in the ${nameA} vs ${nameB} feud?`);
+      } else if (nameA) {
+        chips.push(`What's the next chapter for ${nameA}?`);
+      }
+      if (chips.length >= 2) break;
+    }
+
+    // 2. Next PLE → suggest road-to-PLE planning
+    if (universeDate && events.length > 0) {
+      const upcoming = sortUpcoming(events, universeDate);
+      if (upcoming.length > 0) {
+        chips.push(`Plan the card for ${upcoming[0].name}`);
+      }
+    }
+
+    // 3. Vacant championship → suggest a contender
+    const vacant = championships.filter(
+      c => c.active !== false && (!c.currentChampionIds || c.currentChampionIds.length === 0)
+    );
+    if (vacant.length > 0) {
+      chips.push(`Who should win the vacant ${vacant[0].name}?`);
+    }
+
+    // 4. Fill remaining slots from active roster
+    if (chips.length < 4 && roster.length > 0) {
+      const active = roster.filter(w => !w.status || w.status === "ACTIVE");
+      const pool = active.slice(0, 15);
+      const used = new Set(chips.join(" "));
+      for (const w of pool) {
+        if (chips.length >= 4) break;
+        if (!used.has(w.name)) {
+          chips.push(`Give me 3 ideas for ${w.name}'s next storyline`);
+        }
+      }
+    }
+
+    // 5. Generic fallbacks if universe is empty
+    if (chips.length === 0) {
+      chips.push("Plan my next show card");
+      chips.push("What title matches should I run at my next PLE?");
+      chips.push("Suggest a surprise debut angle");
+      chips.push("Build a slow burn feud for my top two heels");
+    }
+
+    return chips.slice(0, 4);
+  }, [rivalries, roster, universeDate, events, championships]);
+
   const chatMutation = useBookerChat();
   const summarizeMutation = useSummarizeChat();
   const [tokenLog, setTokenLog] = useTokenLog();
@@ -158,34 +216,40 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
   };
 
   const handleSend = (overrideInput?: string) => {
-    const textToSend = overrideInput ?? input;
-    if (!textToSend.trim() || chatMutation.isPending) return;
+    const textToSend = (overrideInput ?? input).trim();
+    if (!textToSend || chatMutation.isPending) return;
 
-    // If no session exists yet, create one
-    let sessionId = activeSession?.id;
-    if (!sessionId) {
-      const newSession = createSession();
-      setSessions(prev => [newSession, ...prev]);
-      setActiveId(newSession.id);
-      sessionId = newSession.id;
+    // Resolve the session synchronously — create one inline if none exists yet.
+    // We capture everything we need from the resolved session into local consts
+    // so that every closure below (onSuccess, onError, summarize) uses the same
+    // stable values regardless of how React batches the subsequent setState calls.
+    let resolvedSession: ChatSession;
+    if (activeSession) {
+      resolvedSession = activeSession;
+    } else {
+      resolvedSession = createSession();
+      setSessions(prev => [resolvedSession, ...prev]);
+      setActiveId(resolvedSession.id);
     }
 
-    const newMessage: BookerChatMessage = { role: BookerChatMessageRole.user, content: textToSend.trim() };
-    const currentMessages = activeSession?.messages ?? [];
-    const updatedMessages = [...currentMessages, newMessage];
+    const targetId = resolvedSession.id;
+    const archivedCount = resolvedSession.archivedCount ?? 0;
+    const sessionSummary = resolvedSession.summary;
 
-    // Update stored session (full history preserved for display)
+    const newMessage: BookerChatMessage = { role: BookerChatMessageRole.user, content: textToSend };
+    const existingMessages = resolvedSession.messages ?? [];
+    const updatedMessages = [...existingMessages, newMessage];
+
+    // Persist the user message and set the title on the first message.
     setSessions(prev => prev.map(s => {
-      if (s.id !== sessionId) return s;
+      if (s.id !== targetId) return s;
       const title = s.messages.length === 0 ? makeTitle(textToSend) : s.title;
       return { ...s, title, messages: updatedMessages, updatedAt: Date.now() };
     }));
     setInput("");
 
-    // Build the "recent" slice for the API call.
-    // Only the last RECENT_WINDOW un-archived messages are sent in full;
-    // older history is already captured in activeSession.summary.
-    const archivedCount = activeSession?.archivedCount ?? 0;
+    // Build the recent slice sent to the API — only the last RECENT_WINDOW
+    // un-archived messages travel in full; older context lives in the summary.
     const unarchivedMessages = updatedMessages.slice(archivedCount);
     const recentToSend = unarchivedMessages.slice(-RECENT_WINDOW);
 
@@ -194,7 +258,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
       {
         data: {
           messages: recentToSend,
-          sessionSummary: activeSession?.summary || undefined,
+          sessionSummary: sessionSummary || undefined,
           ...context,
         },
       },
@@ -202,34 +266,25 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
         onSuccess: (data) => {
           recordTokenUsage(tokenLog, setTokenLog, "chat", data._usage);
           const assistantMsg: BookerChatMessage = { role: BookerChatMessageRole.assistant, content: data.message };
-
-          // All messages after this reply (for archive calculation)
           const allMessages = [...updatedMessages, assistantMsg];
 
           setSessions(prev => prev.map(s => {
-            if (s.id !== sessionId) return s;
+            if (s.id !== targetId) return s;
             return { ...s, messages: allMessages, updatedAt: Date.now() };
           }));
 
-          // Lazy archiving: if un-archived messages exceed ARCHIVE_TRIGGER, compress the overflow.
-          // We keep the last RECENT_WINDOW in full; everything else gets folded into the summary.
-          const currentArchived = activeSession?.archivedCount ?? 0;
-          const totalUnarchived = allMessages.length - currentArchived;
-
+          // Lazy archiving: once un-archived messages exceed ARCHIVE_TRIGGER,
+          // compress the overflow into the rolling summary.
+          const totalUnarchived = allMessages.length - archivedCount;
           if (totalUnarchived > ARCHIVE_TRIGGER) {
             const newArchivedEnd = allMessages.length - RECENT_WINDOW;
-            const toArchive = allMessages.slice(currentArchived, newArchivedEnd);
-
-            // If there is an existing summary, prepend it as context so the new
-            // summary merges both old memory and the newly archived messages.
-            const existingSummary = activeSession?.summary;
+            const toArchive = allMessages.slice(archivedCount, newArchivedEnd);
             const toArchiveWithContext: BookerChatMessage[] = [
-              ...(existingSummary
-                ? [{ role: BookerChatMessageRole.user, content: `PREVIOUS MEMORY: ${existingSummary}` }]
+              ...(sessionSummary
+                ? [{ role: BookerChatMessageRole.user, content: `PREVIOUS MEMORY: ${sessionSummary}` }]
                 : []),
               ...toArchive,
             ];
-
             summarizeMutation.mutate(
               { data: { messages: toArchiveWithContext } },
               {
@@ -237,7 +292,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
                   recordTokenUsage(tokenLog, setTokenLog, "summarize", summaryData._usage);
                   if (!summaryData.summary) return;
                   setSessions(prev => prev.map(s => {
-                    if (s.id !== sessionId) return s;
+                    if (s.id !== targetId) return s;
                     return { ...s, summary: summaryData.summary, archivedCount: newArchivedEnd };
                   }));
                 },
@@ -251,8 +306,8 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
             content: `Creative is unavailable right now.\n\n${describeApiError(error)}\n\nYour message is still saved here. You can retry when the AI server is back, or save a manual canon moment from the Creative Desk.`,
           };
           setSessions(prev => prev.map(s => {
-            if (s.id !== sessionId) return s;
-            return { ...s, messages: [...s.messages, assistantMsg], updatedAt: Date.now() };
+            if (s.id !== targetId) return s;
+            return { ...s, messages: [...updatedMessages, assistantMsg], updatedAt: Date.now() };
           }));
         },
       }
@@ -469,7 +524,7 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
                 Ask about your roster, plan your next PLE, or workshop a storyline.
               </p>
               <div className="flex flex-wrap gap-2 justify-center">
-                {SUGGESTIONS.map(s => (
+                {suggestions.map(s => (
                   <button
                     key={s}
                     onClick={() => handleSend(s)}
