@@ -1,0 +1,65 @@
+I am building a WWE 2K26 Universe Mode companion app called “Gorilla Position.”
+
+Do NOT generate code yet. I want to fully plan the system before any implementation begins.
+
+This app is NOT a match simulator and should NOT rely on traditional match card logging systems. Instead, it should function as a conversational, AI-powered assistant that enhances storytelling while the user still plays WWE 2K26.
+
+Core Concept:
+The app should behave like a “Universe Mode brain” that understands natural language input from the user and tracks storylines, momentum, rivalries, and events without requiring structured forms or spreadsheets.
+
+For example, a user might type:
+
+* “Roman Reigns beat Cody Rhodes clean in the main event”
+* “Judgment Day interfered in Sami Zayn’s match”
+* “Bianca Belair retained but barely”
+
+The system should interpret these inputs and update internal data automatically.
+
+I need help planning the system with the following focus:
+
+1. System Architecture (High-Level)
+
+* How to structure a chat-based system that can interpret user input and maintain continuity over time
+* How memory should be stored (timeline, events, superstar states)
+
+2. Natural Language Interpretation
+
+* How the app can break down user input into structured data (winner, loser, match type, interference, etc.)
+* How to handle vague or incomplete inputs
+
+3. Internal Data Model (No Code Yet)
+   Define what should be tracked behind the scenes:
+
+* Superstars
+* Momentum (primary focus instead of win/loss)
+* Rivalries and relationships
+* Event timeline (weekly shows, major moments)
+* Match context (clean, dirty, interference, etc.)
+
+4. Momentum System Design
+
+* How momentum changes based on context, not just wins/losses
+* How to reflect streaks, rivalries, and major story beats
+
+5. Story Engine Behavior
+
+* How the system should respond after each user input
+* How it generates narrative reactions, consequences, and suggestions
+
+6. User Experience Flow
+
+* What the main screen looks like (chat-first design)
+* How users interact daily (input → response → progression)
+* Optional guidance (buttons, prompts, suggestions)
+
+7. News/Recap System
+
+* How the app can generate “magazine-style” articles based on stored events
+* How tone and variation should work to keep it engaging
+
+8. Risks and Solutions
+
+* Potential issues with a fully chat-based system (lack of structure, memory drift, user confusion)
+* Solutions to maintain clarity and long-term engagement
+
+Be detailed, structured, and focus only on planning and system design. Do NOT generate code.
