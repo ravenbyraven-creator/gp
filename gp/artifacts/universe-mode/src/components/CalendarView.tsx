@@ -36,6 +36,14 @@ export function CalendarView() {
 
   const [viewMonth, setViewMonth] = useState(date.month);
   const [viewYear, setViewYear] = useState(date.year);
+  const followingDate = useRef(true);
+
+  useEffect(() => {
+    if (followingDate.current) {
+      setViewMonth(date.month);
+      setViewYear(date.year);
+    }
+  }, [date.month, date.year]);
 
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
@@ -78,6 +86,7 @@ export function CalendarView() {
 
   const handlePrevMonth = () => {
     if (!canGoPrev) return;
+    followingDate.current = false;
     if (viewMonth === 1) {
       setViewMonth(12);
       setViewYear((y) => y - 1);
@@ -88,12 +97,21 @@ export function CalendarView() {
 
   const handleNextMonth = () => {
     if (!canGoNext) return;
+    followingDate.current = false;
     if (viewMonth === 12) {
       setViewMonth(1);
       setViewYear((y) => y + 1);
     } else {
       setViewMonth((m) => m + 1);
     }
+  };
+
+  const isViewingCurrentMonth = viewMonth === date.month && viewYear === date.year;
+
+  const handleGoToToday = () => {
+    followingDate.current = true;
+    setViewMonth(date.month);
+    setViewYear(date.year);
   };
 
   const handleCellRightClick = (e: React.MouseEvent, week: number, day: number) => {
@@ -150,6 +168,15 @@ export function CalendarView() {
           </h2>
         </div>
         <div className="flex items-center gap-1.5">
+          {!isViewingCurrentMonth && (
+            <button
+              type="button"
+              onClick={handleGoToToday}
+              className="px-2.5 py-1.5 text-[10px] font-bold tracking-widest uppercase rounded-md border border-emerald-400/50 text-emerald-400 hover:bg-emerald-400/10 transition-colors"
+            >
+              Today
+            </button>
+          )}
           <button
             type="button"
             onClick={handlePrevMonth}
