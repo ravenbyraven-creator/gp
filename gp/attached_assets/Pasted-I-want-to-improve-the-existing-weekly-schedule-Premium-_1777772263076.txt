@@ -1,0 +1,134 @@
+I want to improve the existing weekly schedule / Premium Event feature in Creative Desk and turn it into a “Road To The PLE” creative tracker.
+
+Important:
+Do not turn this into a full match-card builder or WWE 2K replacement. WWE 2K is where users play/book matches. Gorilla Position should tell users what stories need attention and what to build toward.
+
+Current app context:
+- Creative Desk already has a Weekly Schedule / UniverseClock.
+- It already has a small Premium Events dialog.
+- The app already stores universe date and premium events.
+- Keep this existing system and improve it.
+- Do not create duplicate event/calendar data.
+
+Goal:
+Make the Premium Event feature feel like a story destination:
+“Road To SummerSlam”
+“Road To WrestleMania”
+“4 weeks out — here’s what needs to happen before the PLE.”
+
+Where it should live:
+1. Creative Desk:
+   - Keep the weekly schedule at the top.
+   - Upgrade the current “Next Premium Event” area into a polished “Road To The PLE” section.
+   - Clicking/tapping it opens a Road To PLE panel/sheet/dialog.
+
+2. Gorilla Position dashboard:
+   - Add a smaller preview card for the next PLE.
+   - Example:
+     - Road To SummerSlam
+     - 4 weeks out
+     - 3 stories need direction
+     - Open Creative Desk
+   - This should only preview and route the user to Creative Desk. The main feature lives in Creative Desk.
+
+Road To PLE Panel Requirements:
+When opened, show:
+- next premium event name
+- date / weeks out
+- event notes
+- active rivalries that may be building toward it
+- champions with no direction or no clear challenger
+- stables/factions with tension or current direction
+- recent canon moments that may need follow-up
+- suggested focus for this week
+
+This should feel like a head writer’s PLE build sheet, not a match card builder.
+
+Suggested sections:
+1. Event Destination
+   - event name
+   - date
+   - weeks out
+   - notes/edit event
+
+2. Stories Building
+   - active rivalries
+   - rivalry heat/readiness if available
+   - recent canon moments tied to the rivalry
+
+3. Title Picture
+   - current champions
+   - titles with no current direction
+   - titles connected to active rivalries
+   - possible challenger ideas if context supports it
+
+4. Faction Watch
+   - stables with active notes
+   - split-brand stable warnings if relevant
+   - possible tension/betrayal hooks
+
+5. This Week’s Focus
+   - 3-5 suggested story beats the user can play out in WWE 2K
+   - examples:
+     - “Give Cody and Orton a confrontation before the PLE.”
+     - “Rhea needs a credible challenger before SummerSlam.”
+     - “The Bloodline tension needs a visible turning point.”
+
+Actions:
+- “Ask AI For PLE Build”
+  - AI suggests how to build toward the event using current app context.
+  - It should not invent history.
+  - It should not generate a full match card unless the user specifically asks.
+  - It should suggest story focus, rivalries to heat up, champions needing challengers, and loose threads.
+
+- “Capture Canon”
+  - Reuse existing Canon Moment / Night Notes behavior.
+  - Do not create a duplicate canon system.
+
+- “Open Rivalries”
+  - Navigate to Rivalries.
+
+- “Open Legacy” if the Legacy tab exists.
+  - If Legacy does not exist yet, route to championship area.
+
+Data / Wiring Requirements:
+- Use existing useUniverseDate and useEvents storage.
+- Use existing shows, roster, championships, stables, rivalries, memories, issues, and history data.
+- Do not duplicate calendar/event state.
+- The Road To PLE view should derive from existing app context.
+- If a new canon moment is saved, the Road To PLE suggestions should update.
+- If a champion changes, the Title Picture section should update.
+- If a rivalry changes status, Stories Building should update.
+- If a stable changes, Faction Watch should update.
+- Include the next premium event in AI context so Chat and Creative Desk know what the user is building toward.
+
+AI Context Rules:
+- Do not send imageUrl/logoUrl/base64 image data to AI.
+- Send useful text context only:
+  - event name/date/weeks out
+  - roster names/IDs/roles/status
+  - champions/title names/current holders
+  - stable names/members/status/notes
+  - active rivalries and memories
+  - recent canon/history
+- AI should act like a head writer helping the user build toward the PLE.
+- AI should suggest what to play/do next in WWE 2K, not replace 2K.
+
+Design:
+- Make it visually premium and consistent with the current Gorilla Position style.
+- Think “Road To WrestleMania production board,” not spreadsheet.
+- Use cards, hierarchy, dark theme, red/gold accents, and strong section titles.
+- Keep it compact enough that Creative Desk does not become cluttered.
+- On mobile, the Road To PLE panel should be a full-screen sheet or clean stacked layout.
+
+Verification:
+- Existing Weekly Schedule still works.
+- Existing Premium Events still save/edit/delete correctly.
+- Advance still works and does not delete future events incorrectly.
+- Dashboard preview updates when next PLE changes.
+- Road To PLE opens from Creative Desk.
+- Road To PLE uses current rivalries, champions, stables, history, and events.
+- AI request includes event context but excludes image data.
+- Capturing canon still saves into existing history.
+- No duplicate event/calendar state is created.
+- Run typecheck and tests if available.

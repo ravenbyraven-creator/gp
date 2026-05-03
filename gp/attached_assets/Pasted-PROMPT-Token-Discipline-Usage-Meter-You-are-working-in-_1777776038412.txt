@@ -1,0 +1,205 @@
+PROMPT — Token Discipline + Usage Meter
+You are working in the Gorilla Position monorepo. Implement everything below in one PR. Do NOT use emojis anywhere in code, comments, UI strings, or system prompts. Match the existing code style.
+
+Part 1 — Stop the bleeding on every AI call
+1a. Per-endpoint output ceilings
+In gp/artifacts/api-server/src/routes/booker.ts:
+
+The shared callOpenAIJson currently uses max_completion_tokens: 8192 for every heavy creative endpoint. The system prompt explicitly says fields must be 14 words or less. 8192 is wildly oversized.
+
+Change callOpenAIJson to accept an explicit max:
+
+async function callOpenAIJson(
+  messages: OpenAIMessage[],
+  maxCompletionTokens: number,
+): Promise<{ data: unknown; usage: TokenUsage | null }> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-5.4",
+    max_completion_tokens: maxCompletionTokens,
+    messages,
+    response_format: { type: "json_object" },
+  });
+  const content = response.choices[0]?.message?.content ?? "{}";
+  const usage = response.usage
+    ? {
+        promptTokens: response.usage.prompt_tokens,
+        completionTokens: response.usage.completion_tokens,
+        totalTokens: response.usage.total_tokens,
+      }
+    : null;
+  return { data: parseModelJson(content), usage };
+}
+Define the type at the top of the file:
+
+type TokenUsage = {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+};
+Update every call site with these ceilings:
+
+POST /booker/generate-storyline: 1024
+POST /booker/book-show: 2048
+POST /booker/surprise-me: 1024
+POST /booker/generate-promo: 1024
+POST /booker/suggest-chapter: 256
+POST /booker/distill-memories: 768
+POST /booker/label-entry: 64
+POST /booker/blowoff-score: 120 (already low, leave as is)
+POST /booker/generate-issue (magazine): 4096
+POST /booker/generate-rumor: 512
+POST /booker/booker-chat: 1024 (already correct)
+POST /booker/summarize-chat: 200 (already correct)
+1b. Slim buildBookerContext
+In gp/artifacts/universe-mode/src/lib/storage.ts, the buildBookerContext function packs the entire roster, all championships, all stables, plus 5 history entries with all beats, into every AI call. Slim it:
+
+Roster: cap at 60 wrestlers when no rivalry context is provided. When called from a rivalry-aware context, cap at 30 with the rivalry's participants always included. Sort by recent activity so recently-booked wrestlers stay in.
+History entries: keep last 5 but truncate recentBeats to the most recent 1 beat per entry (not all of them).
+Championships: only include active !== false.
+Stables: only include status !== "DISBANDED".
+Strip notes and creativeNotes fields when they exceed 200 chars (truncate with ellipsis).
+Add a parameter maxRoster?: number so callers can tighten further.
+
+1c. Token usage in API response
+Every booker route currently returns just the parsed model JSON. Wrap responses to include usage:
+
+res.json({ ...validatedData, _usage: usage });
+In gp/lib/api-spec/openapi.yaml, add an optional _usage field to every response schema (or to a shared base schema):
+
+TokenUsage:
+  type: object
+  properties:
+    promptTokens: { type: integer }
+    completionTokens: { type: integer }
+    totalTokens: { type: integer }
+Regenerate the zod and react-query clients (pnpm --filter @workspace/api-zod run build and the same for api-client-react).
+
+Part 2 — Token meter (client-side)
+2a. Storage hook
+Create gp/artifacts/universe-mode/src/lib/tokens.ts:
+
+import { useLocalStorage } from "./storage";
+import type { UniverseDate } from "./calendar";
+export type EndpointKey =
+  | "storyline" | "show" | "surprise" | "promo"
+  | "chat" | "summarize" | "issue" | "rumor"
+  | "suggestChapter" | "distillMemories" | "labelEntry" | "blowoffScore";
+export interface TokenLogEntry {
+  id: string;
+  endpoint: EndpointKey;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  at: number;                  // Date.now()
+  universeDate?: UniverseDate;
+}
+export interface TokenStats {
+  today: { in: number; out: number; total: number; calls: number };
+  last7Days: { in: number; out: number; total: number; calls: number };
+  lifetime: { in: number; out: number; total: number; calls: number };
+  byEndpoint: Record<EndpointKey, { in: number; out: number; total: number; calls: number }>;
+  topRequests: TokenLogEntry[]; // 5 biggest by totalTokens
+}
+const TOKEN_LOG_KEY = "umc.tokenLog";
+const MAX_LOG_ENTRIES = 500;
+export function useTokenLog() {
+  return useLocalStorage<TokenLogEntry[]>(TOKEN_LOG_KEY, []);
+}
+export function recordTokenUsage(
+  log: TokenLogEntry[],
+  setLog: (next: TokenLogEntry[]) => void,
+  endpoint: EndpointKey,
+  usage: { promptTokens: number; completionTokens: number; totalTokens: number } | null | undefined,
+  universeDate?: UniverseDate,
+): void;
+export function deriveTokenStats(log: TokenLogEntry[]): TokenStats;
+Implement recordTokenUsage to push to the front of the log and trim to MAX_LOG_ENTRIES. Implement deriveTokenStats as a pure function.
+
+Add "umc.tokenLog" to APP_STORAGE_KEYS in storage.ts so it survives factory reset wipe and so the universe export already picks it up.
+
+Add unit tests in gp/artifacts/universe-mode/src/lib/tokens.test.ts covering: today filter, 7-day filter, by-endpoint aggregation, top requests by totalTokens, MAX_LOG_ENTRIES cap.
+
+2b. Wire every mutation to record usage
+In every place where the client calls the booker API (storyline, show, surprise, promo, chat, magazine issue auto-fire in UniverseClock.tsx, rumor, suggest chapter, distill memories, label entry, blowoff score), after a successful mutation, read data._usage and call recordTokenUsage(log, setLog, "<endpoint>", data._usage, universeDate).
+
+The existing call sites to update:
+
+gp/artifacts/universe-mode/src/components/CreativeDesk.tsx: storyline, show, surprise, promo onSuccess callbacks
+gp/artifacts/universe-mode/src/components/Chat.tsx: chat onSuccess and summarize onSuccess
+gp/artifacts/universe-mode/src/components/UniverseClock.tsx: maybeAutoGenerateWeeklyIssue onSuccess for magazine
+gp/artifacts/universe-mode/src/components/News.tsx: manual issue and rumor generation
+gp/artifacts/universe-mode/src/components/RivalryDetail.tsx: suggest chapter, distill memories, label entry, blowoff score
+2c. Header badge
+In gp/artifacts/universe-mode/src/components/AppHeader.tsx, between the nav and the settings cog, add a small button:
+
+TODAY  1.2K in  340 out
+Reads deriveTokenStats(useTokenLog()[0]).today
+Format numbers: < 1000 shown as integer, >= 1000 shown as 1.2K, >= 1000000 as 1.2M
+Tap it: opens the same SettingsView and scrolls to a new "Token Usage" section
+Bottom-right of header, before the settings icon
+Mobile: collapses to just 1.5K total
+Use existing typography: text-[10px] font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground
+2d. Settings breakdown
+In gp/artifacts/universe-mode/src/components/SettingsView.tsx, add a new SettingsSection titled "Token Usage" placed between "Creative Voice" and "Roster Data". Inside:
+
+Three big stat blocks: TODAY, LAST 7 DAYS, LIFETIME — each showing total tokens and call count
+A breakdown list "By feature" using byEndpoint, sorted by total tokens desc, showing each endpoint's name, total tokens, call count
+A "Biggest single requests" list showing topRequests with endpoint, total tokens, when (relative time)
+A "Reset usage history" danger button (clears umc.tokenLog, no confirm needed since it's just stats)
+Part 3 — Stop silent magazine spend
+3a. Auto-magazine toggle
+Add a new storage hook in storage.ts:
+
+export function useAutoMagazine() {
+  return useLocalStorage<boolean>("umc.autoMagazine", true);
+}
+Add "umc.autoMagazine" to APP_STORAGE_KEYS.
+
+In gp/artifacts/universe-mode/src/components/UniverseClock.tsx, in maybeAutoGenerateWeeklyIssue, read useAutoMagazine() and early-return if it is false. Do NOT change any other auto-fire logic.
+
+3b. Settings toggle
+In SettingsView.tsx, add a new SettingsRow inside a new section titled "AI Behavior" placed between "Creative Voice" and "Token Usage". Toggle labeled "Auto-generate weekly Magazine" with hint text:
+
+When advancing time, automatically generate a weekly Magazine issue for the prior week if you logged any night notes. Disable to save tokens; you can still print issues manually from the News tab.
+
+Use the same toggle pattern as the Theme switch already in this file.
+
+Part 4 — Manual test checklist
+Run through each of these and confirm before marking done:
+
+Start fresh universe, send one chat message. Header badge updates to show today's tokens. Settings shows the breakdown.
+Trigger a storyline generation. By-endpoint shows storyline > 0.
+Advance several weeks with night notes. With auto-magazine ON, header tokens jump notably each week. With auto-magazine OFF, header stays flat.
+Manually generate a magazine from News tab. Tokens recorded under issue endpoint.
+Confirm chat continues to work with summarize archiving (RECENT_WINDOW=8, ARCHIVE_TRIGGER=12) and that summarize is recorded under its own endpoint.
+Compare a storyline generation before and after the max_completion_tokens reduction: response is still complete and valid JSON, no truncation errors.
+With a 200-wrestler roster, send a chat message. Network tab shows the request payload is shorter than before (roster is capped). Response still valid.
+Reset usage history wipes the log; header shows zero.
+Universe export downloaded as JSON contains umc.tokenLog and umc.autoMagazine. Re-importing on a clean browser restores both.
+Factory Reset wipes both keys.
+Verify no emojis appear anywhere added in this PR (code, UI strings, prompts, comments).
+Files at a glance
+NEW:
+
+gp/artifacts/universe-mode/src/lib/tokens.ts
+gp/artifacts/universe-mode/src/lib/tokens.test.ts
+EDITED:
+
+gp/artifacts/api-server/src/routes/booker.ts (per-endpoint ceilings, return usage)
+gp/lib/api-spec/openapi.yaml (add _usage to response schemas)
+Regenerate gp/lib/api-zod and gp/lib/api-client-react
+gp/artifacts/universe-mode/src/lib/storage.ts (slim buildBookerContext, add useAutoMagazine, add 2 keys to APP_STORAGE_KEYS)
+gp/artifacts/universe-mode/src/components/AppHeader.tsx (token badge)
+gp/artifacts/universe-mode/src/components/SettingsView.tsx (Token Usage section, AI Behavior toggle)
+gp/artifacts/universe-mode/src/components/CreativeDesk.tsx (record usage on success)
+gp/artifacts/universe-mode/src/components/Chat.tsx (record usage on success, summarize)
+gp/artifacts/universe-mode/src/components/UniverseClock.tsx (record usage on auto-magazine, gate on useAutoMagazine)
+gp/artifacts/universe-mode/src/components/News.tsx (record usage on manual issue + rumor)
+gp/artifacts/universe-mode/src/components/RivalryDetail.tsx (record usage on suggest/distill/label/blowoff)
+NOT TOUCHED:
+
+Anything in Roster.tsx, Legacy.tsx, Rivalries.tsx, Dashboard.tsx, WrestlerInbox.tsx
+The chat summarize logic itself (RECENT_WINDOW, ARCHIVE_TRIGGER)
+Any seed file, fonts, calendar
+The SYSTEM_PROMPT strings (token discipline does not require prompt changes)
+End of prompt.

@@ -1,0 +1,213 @@
+This is Phase 2 of 2 for the News tab. Phase 1 shipped the visual deliverable (newsstand UI, MagazineCover layout, IssueView, RumorView, magazine generation endpoint, rumor endpoint, three-row WWE.com 2005 header). Phase 2 wires the news system into the rest of the app: auto-trigger on universe advance, manual "save to rivalry" filing for issues, and recent magazine headlines flowing back into the AI's context on every request.
+Read Universe-Mode/UNIVERSE_MODE_ASSISTANT.md and Universe-Mode/VISION.md BEFORE writing any code. Same project rules: no emojis, monochrome rule outside the news tab, kayfabe error language, API-first for any spec changes.
+What we're building
+Three discrete features, in priority order:
+
+Auto-generate on universe advance — when the user advances the universe past a Sunday into a new week, AND they've logged at least one Night Note that week, an issue auto-generates in the background. A notification dot appears on the NEWS tab to signal a new unread issue.
+"Save to rivalry" dialog for issue cover articles — after an issue generates (manual OR auto), open the existing FileToRivalryDialog with the cover's suggestedRivalryHint pre-selected. User confirms, files, or skips.
+Recent magazine headlines feed AI context — last 3 issue headlines + featured wrestler get added to buildBookerContext and sent to all booker endpoints, so the AI knows what was reported in past issues when generating new content.
+
+Feature 1 — Auto-generate on universe advance
+When does it trigger?
+The universe-advance logic already lives in lib/calendar.ts (advanceToNextShow). The trigger fires when:
+
+The universe date crosses from one universe-week into the next (e.g., from MAY · WEEK 1 · SUNDAY to MAY · WEEK 2 · MONDAY or any later day in week 2)
+AND at least one Night Note (kind: "log" entry in umc.history) was created during the just-completed universe-week
+AND no issue already exists for the just-completed universe-week
+
+If any of those conditions fail, no auto-generation. Manual button still works.
+Where does the trigger live?
+In the universe-date update logic. Find where the universe date is set (likely in UniverseClock.tsx or a hook in storage.ts / calendar.ts). Add a useEffect (or a wrapper around setUniverseDate) that:
+
+Detects when the date changes from one week to a later week
+Checks if any Night Notes were logged in the previous week (filter umc.history by universeDate falling in the previous week's range)
+Checks if an issue already exists for the previous week (look in umc.issues for any issue whose universeDate falls in that range)
+If conditions pass: triggers the issue-generation mutation in the background
+
+Use weekKey helper (create one in calendar.ts) that turns a UniverseDate into a string like "M5W1" (month 5, week 1) for cheap "same-week" comparison. Issues and Night Notes can be matched against this key.
+Background generation behavior
+The mutation runs silently. Loading state does NOT lock the UI — user can keep playing/booking while the issue prints. Use useGenerateIssue.mutateAsync and don't show the existing fullscreen "PRINTING THIS WEEK'S ISSUE..." overlay for auto-generated issues (that overlay stays for manual-tap generation only).
+On success: append the issue to umc.issues, mark it as unread (see Feature 1c below), then trigger Feature 2 (open the FileToRivalry dialog non-modally — see "Auto-vs-manual generation behavior" below for the rule).
+On failure: silently fail — no toast, no kayfabe error stamp, no UI noise. The user didn't ask for this issue, so the failure shouldn't interrupt them. Log a console warning. The user can manually press PRINT WEEKLY ISSUE if they notice nothing happened.
+Auto-vs-manual generation behavior — important distinction
+The FileToRivalry dialog should pop up immediately for manual generation (user pressed the button, they're on the news tab, they're paying attention). For auto generation, the dialog should NOT pop up — instead, the unread badge appears on the NEWS tab, and the dialog opens when the user taps the new issue from the newsstand.
+So the flow is:
+
+Manual generate → loading overlay → success → cover renders → "Save to rivalry" dialog opens immediately
+Auto generate → silent print → unread badge on NEWS tab → user taps NEWS → user taps the new issue → IssueView opens → "Save to rivalry" dialog opens at the same time
+
+Both paths end at the same dialog. The trigger differs.
+Feature 1b — Unread badge on the NEWS tab
+Add an unread: boolean field to the Issue type. New issues default to unread: true. Mark unread: false when the user opens the IssueView for that issue.
+In the AppHeader (the main app nav), the NEWS tab shows a small notification dot when ANY issue in umc.issues has unread: true. The dot:
+
+Sits in the top-right corner of the NEWS tab label
+Is a 7-8px solid red circle (#dc1e1e)
+Has a subtle white outer ring (1px) so it stays visible against any tab background
+If there are 2+ unread issues, the dot shows the count in white display font (e.g., "2", "3"). Cap display at "9+".
+
+The notification dot is the ONLY place red is used in the AppHeader nav. Outside the news tab, no other color creep.
+Feature 1c — Notification strip on the newsstand
+When the user opens the NEWS tab and there are unread issues, show a small notification strip at the very top of the page (above the WWE.com-style header), full width, dark gray:
+
+Left text in red display font: NEW ISSUES ON THE STAND (singular: NEW ISSUE ON THE STAND if exactly one)
+Right side: small "DISMISS" button. Dismissing marks all currently-unread issues as read without opening them.
+Subtle slide-down animation when it appears, slide-up when dismissed.
+
+When all issues are read, the strip is hidden entirely.
+Feature 2 — Save-to-rivalry dialog for issue cover articles
+What this does
+After an issue is generated (manual) OR a user opens an unread auto-generated issue, the existing FileToRivalryDialog opens with the cover article info pre-populated. User decides whether to file the cover article into a rivalry's HISTORY or skip.
+What gets filed
+When the user confirms filing, create a new entry in umc.history with:
+ts{ kind: "magazine"; id: string; createdAt: number; universeDate: UniverseDate; data: MagazineHistoryRef }
+Where MagazineHistoryRef is:
+tstype MagazineHistoryRef = {
+  issueId: string;          // points back to the full issue in umc.issues
+  issueNumber: number;
+  coverHeadline: string;    // the cover's primaryHeadline
+  coverFeaturedWrestlerId?: string;
+};
+Then the rivalry's historyEntryIds gets the new entry's id appended, and lastActivityDate is updated to the issue's universeDate.
+This means the RivalryEntry type needs a new variant. Add it to storage.ts. Update Rivalries' HISTORY tab rendering to handle the new variant — display it as a small "MAGAZINE" entry with the cover headline and "ISSUE #N" label, tappable to open the IssueView popup.
+How the dialog behaves
+The existing FileToRivalryDialog is in RivalryDialogs.tsx. It already supports:
+
+Pre-selection from suggestedRivalryHint
+Existing rivalry dropdown
+Create-new-rivalry flow
+Cancel/skip
+
+Extend it to handle an issue cover article as the entry being filed:
+
+The dialog accepts a new prop variant — instead of (or alongside) the current entry: RivalryEntry, accept issue: Issue and the kind: "magazine" filing flow.
+The dialog title becomes FILE COVER STORY? for issues (vs FILE TO RIVALRY? for storyline/promo/surprise).
+Subtitle: This week's cover: "${cover.primaryHeadline}". File it to a rivalry?
+The pre-selection logic uses issue.cover.suggestedRivalryHint (matches the existing suggestedRivalryHint shape from storyline/promo/surprise responses — see "OpenAPI changes" below).
+Save creates the new kind: "magazine" history entry as described above.
+Skip / cancel: the issue still saves to umc.issues, just doesn't get filed anywhere. User can never re-file from the same dialog (issues only show this dialog once per issue), but they could manually file via a future feature if needed.
+
+Don't break existing flows
+The existing FileToRivalryDialog flow for Quick Book results (storyline / promo / surprise) must still work exactly as it does now. This is purely additive — the dialog gains a new "issue" mode without changing the existing modes.
+Feature 3 — Recent magazine headlines feed into AI context
+Update buildBookerContext
+Add issues: Issue[] as a new optional argument. Compute and add to the returned payload:
+tsrecentMagazineHeadlines: Array<{
+  issueNumber: number;
+  universeDate: UniverseDate;
+  coverHeadline: string;
+  featuredWrestlerName?: string;  // resolved from id back to name for the AI's benefit
+}>
+Algorithm:
+
+Sort issues by universeDate descending
+Take top 3
+For each: { issueNumber, universeDate, coverHeadline: issue.cover.primaryHeadline, featuredWrestlerName: roster.find(w => w.id === issue.cover.featuredWrestlerId)?.name }
+
+This is sent to ALL booker endpoints: storyline, show, surprise, promo, chat, issue, rumor, chapter-suggest, memory-distill. The issue and rumor endpoints get this too — so the AI doesn't repeat itself when generating consecutive issues.
+OpenAPI changes
+Add recentMagazineHeadlines as an optional field on the shared booker request body. Schema:
+yamlrecentMagazineHeadlines:
+  type: array
+  description: Last 3 magazine cover headlines, used for continuity. AI should reference past coverage and avoid repeating angles.
+  maxItems: 3
+  items:
+    type: object
+    required: [issueNumber, coverHeadline]
+    properties:
+      issueNumber:
+        type: integer
+      universeDate:
+        type: object  # UniverseDate shape — reuse existing schema
+      coverHeadline:
+        type: string
+      featuredWrestlerName:
+        type: string
+Also: add suggestedRivalryHint to the IssueGenerationResult cover object, matching the existing shape on storyline/promo/surprise responses:
+yaml# Inside IssueCoverData schema
+suggestedRivalryHint:
+  type: object
+  required: [matchupGuess]
+  properties:
+    matchupGuess:
+      type: string
+    confidence:
+      type: string
+      enum: [high, medium, low]
+Update the /booker/issue system prompt to instruct the AI to include this field on the cover object — its guess at which rivalry the cover story is about, formatted like the existing hint on storyline/promo (e.g., "CODY RHODES VS ROMAN REIGNS" or "BLOODLINE VS RHODES & ZAYN"). Confidence based on how clearly the cover focuses on a specific matchup vs covering broader news.
+After spec changes, run pnpm --filter @workspace/api-spec run codegen. Don't hand-edit generated files.
+Server prompt changes
+In artifacts/api-server/src/routes/booker.ts, update the context-builder helper. Add a new section to the system-prompt preamble after RECENT EVENTS / ACTIVE RIVALRY MEMORIES:
+RECENT MAGAZINE HEADLINES — what was covered in the last 3 issues:
+- Issue #18 (MAY WEEK 2): "PUNK LIGHTS THE FUSE" — featured CM Punk
+- Issue #17 (MAY WEEK 1): "ROMAN'S BREAKING POINT" — featured Roman Reigns
+- Issue #16 (APR WEEK 4): "CODY UNCHAINED" — featured Cody Rhodes
+
+Use these for continuity. Don't repeat the same angle two weeks in a row. Build on what was reported.
+If recentMagazineHeadlines is empty or undefined, omit the section entirely. Don't render an empty heading.
+This applies to ALL booker endpoints. Update each handler's context build accordingly — they should pass the new field through to the preamble.
+Pass-through plumbing
+Update every place that calls buildBookerContext to pass in the new issues argument:
+
+All Quick Book mutations in CreativeDesk.tsx
+The Chat component
+The chapter-suggest and memory-distill calls from the rivalry detail popup
+The /booker/issue and /booker/rumor calls in News.tsx
+
+What NOT to do in Phase 2
+
+Do NOT change the visual look of the news tab. The three-row WWE.com 2005 header, the hero panel, the headlines sidebar, the Inside This Issue row, the breaking ticker, the magazine cover layout, the IssueView, the RumorView — all stay exactly as they are.
+Do NOT auto-file issues into rivalries. Always go through the FileToRivalryDialog with user confirmation. The user explicitly asked for the dialog, even on auto-generated issues.
+Do NOT auto-trigger rumor spills. Only weekly issues auto-generate. Rumors stay manual-only.
+Do NOT add a "magazines" filter pill to the Rivalries tab. The new kind: "magazine" history entries should appear under the existing ALL filter and inside per-rivalry HISTORY tabs, but they don't need a dedicated pill — keep the filter row clean.
+Do NOT modify the universe clock UI or the premium events system.
+Do NOT add real-life out-of-character references in the AI prompts. Same kayfabe rules as Phase 1.
+Do NOT add new dependencies.
+Do NOT touch the dormant audio integration. Still off-limits.
+Do NOT add a "delete issue" or "hide issue" feature. Issues stay in umc.issues permanently. Past issues are part of the universe's history.
+
+Documentation update
+After implementation, update Universe-Mode/UNIVERSE_MODE_ASSISTANT.md:
+
+Under What's Built → Tab 0: NEWS, add a section describing:
+
+Auto-generation on universe advance (with the conditions that gate it)
+Unread notification dot on the NEWS tab and notification strip on the newsstand
+Save-to-rivalry flow on cover articles (manual and auto paths)
+
+
+Under API Endpoints → Every request body accepts, add recentMagazineHeadlines.
+Under the /booker/issue description, mention the new suggestedRivalryHint field on the cover.
+Under Persistence (localStorage keys), note that umc.issues entries now have an unread boolean and that umc.history includes a new kind: "magazine" variant.
+Update the buildBookerContext signature reference to include issues.
+Under Important Build Conventions to Maintain, update the "Always pass full context" bullet to include recentMagazineHeadlines.
+Add a new entry under Recent Changes dated today.
+Remove the "Phase 1 of 2" temporary note at the top of Recent Changes.
+
+Update Universe-Mode/replit.md Recent Changes with a one-line note.
+Acceptance check before you tell me you're done
+
+ weekKey helper exists in calendar.ts and returns a stable string per universe-week
+ Auto-generation triggers when universe crosses into a new week AND prior week had Night Notes AND no issue exists for that week
+ Auto-generation runs silently — no fullscreen overlay, no toast on success, no error toast on failure
+ Unread badge appears on NEWS tab when any issue has unread: true. Count shows for 2+. Caps at "9+"
+ Notification strip appears at top of newsstand when unread issues exist. Dismiss button marks all read
+ Opening an issue's IssueView marks it as unread: false
+ FileToRivalryDialog opens for cover articles — auto-gen path opens it on first issue-view, manual-gen path opens it after generation
+ Dialog shows "FILE COVER STORY?" title and the cover headline as subtitle
+ AI's suggestedRivalryHint on the cover pre-selects the matching rivalry in the dropdown
+ Filing creates a kind: "magazine" entry in umc.history, links it to the rivalry's historyEntryIds, and updates lastActivityDate
+ Magazine entries render in Rivalries' HISTORY tab as a small "MAGAZINE / ISSUE #N" card, tappable to open IssueView
+ recentMagazineHeadlines populated by buildBookerContext, capped to 3, sorted newest-first
+ All booker endpoints receive recentMagazineHeadlines and the server prompt includes the RECENT MAGAZINE HEADLINES section when non-empty
+ Existing FileToRivalryDialog flows (storyline/promo/surprise filing from Quick Book) still work unchanged
+ All three docs updated as specified
+ pnpm run typecheck passes
+ pnpm run build succeeds
+ No emojis, no new colors, no new dependencies, no audio integration changes
+
+Build it, run typecheck and build, and report back with:
+
+A summary of what changed (file list + ~one line per file)
+Any decisions you made that I didn't specify (especially around how the auto-trigger handles edge cases like advancing multiple weeks at once, or what happens if a user manually generates an issue mid-week then auto-trigger fires)
+A confirmation that the existing magazine cover, IssueView, header, hero panel, and breaking ticker all still render unchanged

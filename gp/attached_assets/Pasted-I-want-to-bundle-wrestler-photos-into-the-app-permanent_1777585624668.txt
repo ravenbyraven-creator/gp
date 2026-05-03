@@ -1,0 +1,87 @@
+I want to bundle wrestler photos into the app permanently so they survive across devices and browser cache clears. I've uploaded a zip called wrestlers.zip to the project root containing 197 wrestler photos.
+Read Universe-Mode/UNIVERSE_MODE_ASSISTANT.md and Universe-Mode/VISION.md BEFORE writing any code so you know the project conventions.
+What we're doing
+Move all the photos into artifacts/universe-mode/public/wrestlers/, fix a handful of filename typos so they match the seedRoster slugs, update the seedRoster to reference the bundled photos via imageUrl, and add a one-time migration so existing users with seed-empty rosters automatically get the new photos without losing any custom uploads they've made.
+Step 1 — Extract the zip
+The user uploaded wrestlers.zip to the project root. Inside is a folder wrestlers/ containing 197 image files (mostly .png, one .webp, one .jpg).
+
+Extract the contents of wrestlers.zip so all the image files end up in artifacts/universe-mode/public/wrestlers/ (NOT in a nested wrestlers/wrestlers/ subfolder).
+After extraction, delete the wrestlers.zip from project root — we don't need it committed.
+
+Step 2 — Fix filename typos
+Several uploaded filenames don't match the seedRoster's name slugs. Rename these files BEFORE updating the seed:
+Current filenameRename toaliester=black.pngaleister-black.pngalex-shelly.pngalex-shelley.pngdamien-priest.pngdamian-priest.pngfaroooq.pngfaarooq.pngpyscho-clown.pngpsycho-clown.pngthe-iron-shiek.pngthe-iron-sheik.pngmyles-bourne.pngmyles-borne.pngel-granda-americano.pngel-grande-americano.pngivan.pngivar.pngjd-mcdonough.pngjd-mcdonagh.pngddp.pngdiamond-dallas-page.pngchanning-stacks-lorenzo.pngchanning-lorenzo.pngcody-rhodes.pngamerican-nightmare-cody-rhodes.png
+Three more files have no clean seed match — leave them where they are AND log a warning so the user can decide later:
+
+seth-rollins.png — the seedRoster has a malformed entry Seth \ (broken syntax) instead of "Seth Rollins". See Step 4.
+sid-vicious.png — the seed has "Sid Justice" only. Don't rename, just log.
+the-undertaker.png — verify whether the seed has "The Undertaker" or "Undertaker" and rename if needed; if seed is "Undertaker" exact, rename file to undertaker.png.
+
+Step 3 — Update the seedRoster
+In artifacts/universe-mode/src/lib/seedRoster.ts, every wrestler entry needs an optional imageUrl field added. The slug rule is:
+slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[''.]/g, '')
+For each entry, if a file exists at artifacts/universe-mode/public/wrestlers/${slug}.png (or .webp or .jpg), set imageUrl: "/wrestlers/${slug}.${ext}". If no matching file exists, leave imageUrl undefined (don't set it).
+After processing, ~180-195 entries should have imageUrl set. Print a count of matched/unmatched at the end.
+Update the Wrestler type in storage.ts (and any related schema) to include imageUrl?: string.
+Step 4 — Fix the broken seedRoster entry
+The seedRoster has a malformed entry Seth \ (around line 200ish). It looks like it was supposed to be Seth "Freakin" Rollins but the escape characters broke the string literal. Replace that broken entry with a proper one:
+ts{ name: "Seth Rollins", brand: R, alignment: TWEENER, imageUrl: "/wrestlers/seth-rollins.png" },
+(Brand and alignment are my guesses — leave as a comment if you're not sure and the user can adjust.)
+Step 5 — Write the localStorage migration
+Existing users have umc.roster in localStorage from previous sessions. Some of those entries may have custom uploaded images (data URIs in imageUrl). The migration rules:
+In artifacts/universe-mode/src/lib/storage.ts (in useRoster or wherever the roster is initialized from localStorage):
+
+On first load after this update, iterate every wrestler in the user's existing roster.
+For each, find the matching seed entry by case-insensitive name match.
+If the user's wrestler has NO imageUrl set, AND the seed has an imageUrl, copy the seed's imageUrl over.
+If the user's wrestler ALREADY has an imageUrl (custom upload from the Roster UI — these are typically data:image/... URIs), DO NOT touch it. Custom uploads always win.
+If the user's wrestler has imageUrl: "/wrestlers/..." (already migrated from a previous session), leave it alone.
+
+Use a one-time guard so the migration doesn't re-run on every page load. A simple approach: write a umc.rosterPhotosMigrated: true flag to localStorage after running. Skip if already set.
+Save the updated roster back to localStorage.
+Step 6 — Document the change
+Update Universe-Mode/UNIVERSE_MODE_ASSISTANT.md:
+
+Under What's Built → Tab 2: ROSTER, add a paragraph: "Wrestler photos are now bundled with the app at artifacts/universe-mode/public/wrestlers/. The seedRoster references each photo via an imageUrl field that resolves to the public folder URL. ~180 wrestlers in the seed have bundled photos. Users can still upload custom replacement images via the Roster UI — custom uploads override seed photos. Photos persist across devices and browser cache clears because they're part of the app bundle, not localStorage."
+Under Persistence (localStorage keys), note the new umc.rosterPhotosMigrated flag.
+Add a new entry under Recent Changes dated today.
+
+Update Universe-Mode/replit.md Recent Changes with a one-line note.
+Step 7 — Verify
+Before telling me it's done:
+
+Confirm the photos are in artifacts/universe-mode/public/wrestlers/ and accessible at /wrestlers/[slug].png from the running app.
+Run pnpm run typecheck — passes.
+Run pnpm run build — succeeds. Note that bundled image assets will increase the dist size by ~22 MB. That's expected.
+Spot-check the running app: open the Roster tab, scroll to "Cody Rhodes" (or "American Nightmare Cody Rhodes"), confirm his photo loads. Check 3-4 other wrestlers who should have photos.
+Confirm wrestlers without bundled photos still show their initials placeholder (don't break that fallback).
+
+What NOT to do
+
+Do NOT delete or modify any custom-uploaded images already in localStorage.
+Do NOT add color anywhere. No new dependencies.
+Do NOT modify the Roster UI's upload flow — users should still be able to upload custom photos that override the bundled ones.
+Do NOT add photos for wrestlers not in the seedRoster.
+Do NOT compress, crop, or modify the uploaded photos. Use them as-is.
+Do NOT touch the OpenAPI spec — imageUrl lives only on the client side.
+Do NOT run the migration more than once. Use the umc.rosterPhotosMigrated flag to gate it.
+Do NOT auto-file or trigger any other features. This update is photos-only.
+
+Acceptance check before you tell me you're done
+
+ wrestlers.zip extracted to artifacts/universe-mode/public/wrestlers/, original zip deleted from root
+ All 13 typo'd filenames renamed to match seed slugs
+ seedRoster has imageUrl set for ~180+ wrestlers
+ Broken Seth \ entry fixed to a proper "Seth Rollins" entry with imageUrl
+ localStorage migration runs once, preserves custom uploads, fills in seed photos
+ umc.rosterPhotosMigrated flag prevents re-running
+ pnpm run typecheck passes
+ pnpm run build succeeds
+ Roster UI shows bundled photos for matched wrestlers, initials for unmatched
+ Both docs updated
+
+Build it, run typecheck and build, and report back with:
+
+Count of matched/unmatched wrestlers (e.g., "183 of 257 seed wrestlers now have bundled photos")
+Any files that didn't match seed slugs and what you did with them
+Whether the migration logic ran cleanly on test load

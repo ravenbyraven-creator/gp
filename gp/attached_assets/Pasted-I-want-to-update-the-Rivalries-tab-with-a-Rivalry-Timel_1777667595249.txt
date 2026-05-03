@@ -1,0 +1,32 @@
+I want to update the Rivalries tab with a “Rivalry Timeline with Chapters” feature.
+Please do not turn the app into a homework tracker. Keep the app’s purpose as a ChatGPT-style Universe Mode writers’ room companion where saved creative moments become canon and everything stays wired together.
+Feature goal:
+Each rivalry should feel like a living WWE video package. When I open a rivalry, I want to see the feud as a story arc with chapters like Beginning, Escalation, Turning Point, Fallout, and Blowoff.
+Requirements:
+- Add a timeline view inside each rivalry detail page.
+- Use existing saved rivalry entries, history moments, promos, shows, surprises, news/magazine items, and manual canon moments as the source material.
+- Show entries in chronological order.
+- Group or label entries into story chapters.
+- Support chapter labels such as Beginning, Escalation, Turning Point, Fallout, and Blowoff.
+- Let AI suggest chapter titles, short recaps, and what the chapter means for the rivalry.
+- Let me manually edit chapter names or correct the chapter type if AI gets it wrong.
+- Add a “What changed?” summary for the rivalry after important saved moments.
+- Add a “Ready for blowoff?” creative indicator based on whether the feud has enough setup, escalation, and payoff.
+- Add a “Suggest next beat” action that uses only that rivalry’s history plus the connected app context.
+- Make the UI feel like a WWE video package / creative board, not a spreadsheet.
+- Keep empty states helpful and kayfabe, explaining that the timeline fills up when I save canon moments to the rivalry.
+- Preserve all existing rivalry features unless they conflict with this new flow.
+Data behavior:
+- Do not create disconnected duplicate data.
+- Reuse the current rivalry entries/history system wherever possible.
+- Any chapter/timeline metadata should connect back to the original saved moments.
+- Make sure manual canon moments can appear in the rivalry timeline.
+- Make sure AI-generated storylines, promos, shows, surprises, and news can feed into the timeline when filed to a rivalry.
+AI behavior:
+- AI should summarize and organize the feud, not invent random history.
+- AI can suggest chapter names, summaries, turning points, and next beats based on existing app context.
+- If AI is unavailable, the user should still be able to manually organize/edit the timeline.
+Verification:
+- Run typecheck and tests.
+- Add or update tests for any timeline/chapter helpers.
+- Confirm existing Rivalries behavior still works.

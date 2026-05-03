@@ -1,0 +1,32 @@
+kind = "web"
+previewPath = "/"
+title = "Gorilla Position"
+version = "1.0.0"
+id = "gp_universe_mode_001"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23840
+
+[services.development]
+run = "pnpm --filter @workspace/universe-mode run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/universe-mode", "run", "build" ]
+publicDir = "artifacts/universe-mode/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23840"
+BASE_PATH = "/"
+API_PROXY_TARGET = "http://localhost:8080"

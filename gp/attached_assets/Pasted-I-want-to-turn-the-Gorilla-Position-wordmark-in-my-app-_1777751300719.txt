@@ -1,0 +1,101 @@
+I want to turn the “Gorilla Position” wordmark in my app header into the clickable Home/Dashboard tab.
+
+Important logo clarification:
+Do NOT use the far-left “GP” icon/logo as the home tab target.
+
+The clickable home tab should be the wordmark/text area that says “Gorilla Position” in the top navigation, the one located next to the far-left GP icon and before the Inbox tab.
+
+Goal:
+Create a new Home/Dashboard page called “Gorilla Position” that feels like the literal gorilla position: the command center where the user sees the whole state of their WWE Universe before playing.
+
+Navigation requirements:
+- Make the “Gorilla Position” wordmark/text clickable.
+- Do not make the far-left GP icon the primary clickable home target unless it already has harmless existing behavior.
+- Clicking the “Gorilla Position” wordmark should open the new Gorilla Position dashboard/home page.
+- Visually highlight the “Gorilla Position” wordmark when active so users understand it is clickable and represents the current page.
+- Keep the existing Inbox, Roster, Rivalries, News, Chat, Creative Desk, etc. navigation working.
+- Do not make the header feel cluttered.
+- The wordmark should feel like a branded home tab, not plain text.
+
+Page concept:
+The Gorilla Position page should bring everything together:
+- weekly creative briefing
+- current champions
+- active rivalries
+- stables/factions to watch
+- wrestler inbox alerts
+- recent canon moments
+- loose threads that need follow-up
+- suggested next creative beats
+- wrestlers who need TV time
+- upcoming/important stories if available
+
+Design direction:
+Make it look premium and match the app’s current dark WWE writers’ room aesthetic. Think backstage production desk, monitors, headset on, head writer briefing before Raw/SmackDown.
+
+The page should feel organized, not messy:
+- Use strong section hierarchy.
+- Use cards/panels with clear labels.
+- Use the app’s existing colors, fonts, borders, gradients, and polish.
+- Avoid plain dashboard boxes.
+- Avoid spreadsheet/table-heavy UI.
+- Make it feel like a creative command center.
+
+Suggested sections:
+1. Tonight’s Creative Brief
+   - 3-5 most important things the user should pay attention to this week.
+
+2. Top Stories
+   - active rivalries, champion drama, faction issues, major recent canon moments.
+
+3. Championship Picture
+   - current champions, titles with no current direction, possible challengers.
+
+4. Faction Watch
+   - active stables, unstable alliances, tag teams, potential betrayals.
+
+5. Inbox / Talent Noise
+   - important wrestler inbox items or talent reactions.
+
+6. Loose Threads
+   - unresolved betrayals, attacks, title claims, ignored rivalries, stories needing follow-up.
+
+7. Suggested Next Beats
+   - quick creative suggestions that can send the user to Creative Desk, Chat, Rivalries, or manual canon capture.
+
+Wiring requirements:
+- The dashboard must use existing app data.
+- Do not create disconnected duplicate data.
+- Pull from roster, championships, stables, rivalries, history, news, inbox, chat, and saved canon moments.
+- If something changes elsewhere, the Gorilla Position dashboard should update.
+- If a champion changes, it should update on the dashboard.
+- If a stable changes, it should update on the dashboard.
+- If a rivalry gets a new canon moment, the dashboard should reflect it.
+- If there is no data yet, show helpful kayfabe empty states explaining what to do next.
+
+AI behavior:
+- If using AI for the briefing, the AI should summarize saved canon and current context only.
+- It should not invent history.
+- It should act like a head writer giving the user a pre-show briefing.
+- It should suggest what needs follow-up and why.
+- If AI is unavailable, the dashboard should still show manual/context-based sections from saved data.
+
+UX:
+- Make the dashboard useful at a glance.
+- Users should be able to click cards to jump to connected areas:
+  - champion card -> roster/championships
+  - rivalry card -> rivalry detail
+  - inbox item -> inbox
+  - suggested beat -> creative desk/chat
+  - loose thread -> related rivalry/history item
+- Keep it fast and not overwhelming.
+
+Verification:
+- Confirm the “Gorilla Position” wordmark opens the home dashboard.
+- Confirm the far-left GP icon was not accidentally used as the main home tab target.
+- Confirm the “Gorilla Position” wordmark is highlighted when active.
+- Confirm all existing tabs still work.
+- Confirm the dashboard updates from roster, championships, stables, rivalries, inbox, and history data.
+- Confirm empty states look good.
+- Confirm responsive layout works.
+- Run typecheck and tests if available.

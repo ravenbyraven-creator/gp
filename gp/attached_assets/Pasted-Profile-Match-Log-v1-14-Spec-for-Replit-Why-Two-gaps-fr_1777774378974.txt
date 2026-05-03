@@ -1,0 +1,560 @@
+Profile + Match Log v1.14 — Spec for Replit
+
+Why
+
+Two gaps from the v1.13 review:
+
+
+
+
+
+Clicking a wrestler does nothing. In gp/artifacts/universe-mode/src/components/Roster.tsx every card is wrapped in CardMenu, which is only a right-click ContextMenu plus a hover-revealed three-dot dropdown. There is no left-click handler and no Wrestler Profile page to navigate to.
+
+
+
+No match results exist anywhere. The only "match" data is the free-text result: string inside ShowMatch on an AI-generated ShowCard (see gp/lib/api-client-react/src/generated/api.schemas.ts line ~390). The AI can't read W/L records because they don't exist; the user can't see "Cody is 2-1 vs Gunther" without scrolling through every storyline.
+
+This build solves both at once: Wrestler Profile is the home for the W/L data, so we ship one coherent screen instead of two disconnected features.
+
+Legacy (championship reigns) is kept as-is. We read useTitleReigns() from inside the Wrestler Profile but we do not modify the Legacy tab.
+
+
+
+What we're building
+
+flowchart TD
+  A["User books show in Creative Desk (AI)"] --> B["RivalryEntry kind=show with ShowCard.matches"]
+  C["User plays show in WWE 2K26"]
+  B --> D["Open ShowCard entry, click 'Resolve Results'"]
+  C --> D
+  E["Dashboard: 'Log Tonight's Results' CTA"] --> F["MatchLogger sheet, blank rows"]
+  D --> G["MatchLogger sheet, pre-filled from ShowCard.matches"]
+  F --> H["umc.matchResults in localStorage"]
+  G --> H
+  H --> I["useWrestlerStats(id) derives W/L, streaks, head-to-head"]
+  H --> J["useHeadToHead(sideA, sideB) for rivalry detail"]
+  H --> K["buildBookerContext injects matchRecord into AI context"]
+  I --> L["Wrestler Profile career section"]
+  L2["Click a wrestler card"] --> M["Wrestler Profile opens"]
+  M --> I
+  M --> N["useTitleReigns from Legacy data"]
+  M --> O["Memories from rivalries this wrestler is in"]
+
+
+
+1. Data model (NEW)
+
+Create gp/artifacts/universe-mode/src/lib/matches.ts:
+
+import type { UniverseDate } from "./calendar";
+
+export type MatchOutcome =
+  | "PIN" | "SUBMISSION" | "DQ" | "COUNTOUT"
+  | "NO_CONTEST" | "DRAW" | "KO" | "OTHER";
+
+export interface MatchSide {
+  id: string;                  // crypto.randomUUID()
+  wrestlerIds: string[];       // 1 = singles; 2+ = tag/trios
+  label?: string;              // optional team name override
+}
+
+export interface MatchResult {
+  id: string;
+  date: UniverseDate;
+
+  // Where it happened
+  showId?: string;             // raw | smackdown | custom show id
+  showName?: string;           // denormalized so deleting a show doesn't orphan
+  eventName?: string;          // PPV / event name override
+  slot?: string;               // OPENER, MID, MAIN_EVENT (denormalized from ShowCard)
+
+  // Linkage back to source data
+  historyEntryId?: string;     // the ShowCard RivalryEntry this came from, if any
+  rivalryId?: string;          // optional manual tag
+
+  // The match itself
+  sides: MatchSide[];          // 2 sides for normal; 3+ for multi-way
+  winnerSideId?: string;       // undefined if NO_CONTEST/DRAW
+  outcome: MatchOutcome;
+  finish?: string;             // "Cross Rhodes", "Powerbomb thru table"
+  stipulation?: string;        // "Hell in a Cell", "Last Man Standing"
+
+  // Title context
+  titleId?: string;            // championship at stake
+  titleChanged?: boolean;      // if true, surface a hint to also log it in Legacy
+
+  // Polish
+  stars?: number;              // 0..5 step 0.25
+  notes?: string;
+}
+
+Add the storage hook + derivations in the same file:
+
+export function useMatchResults() {
+  return useLocalStorage<MatchResult[]>("umc.matchResults", []);
+}
+
+export interface WrestlerRecord {
+  wins: number;
+  losses: number;
+  draws: number;       // includes NO_CONTEST + DRAW
+  total: number;
+  winPct: number;      // 0..1
+  currentStreak: { kind: "W" | "L" | "N"; length: number };
+  titleMatchWins: number;
+  titleMatchLosses: number;
+}
+
+export function deriveWrestlerStats(
+  wrestlerId: string,
+  matches: MatchResult[],
+): WrestlerRecord;
+
+export function deriveHeadToHead(
+  sideAIds: string[],
+  sideBIds: string[],
+  matches: MatchResult[],
+): { aWins: number; bWins: number; draws: number; lastMatchId?: string };
+
+export function wrestlerMatches(
+  wrestlerId: string,
+  matches: MatchResult[],
+): MatchResult[];                  // sorted by date desc
+
+Stats rules (be explicit so Replit doesn't guess):
+
+
+
+
+
+A wrestler "wins" a match when their MatchSide.id === winnerSideId.
+
+
+
+outcome === "DRAW" || outcome === "NO_CONTEST" counts as a draw for everyone in the match.
+
+
+
+outcome === "DQ" || outcome === "COUNTOUT" still has a winner (the side that didn't get DQ'd / counted out) and a loser.
+
+
+
+Streak resets on a draw.
+
+
+
+Title match = titleId !== undefined.
+
+Add unit tests in src/lib/matches.test.ts covering: singles W/L, tag W/L (both members credited), multi-way (only winner side gets W, all others get L), draws, DQ wins, streak calculation, head-to-head with overlapping rosters.
+
+
+
+2. Storage wiring (EDIT)
+
+In gp/artifacts/universe-mode/src/lib/storage.ts:
+
+
+
+
+
+Add "umc.matchResults" to the APP_STORAGE_KEYS array (around line 298) so factory reset wipes it and so the just-shipped export/import picks it up automatically.
+
+
+
+Re-export useMatchResults from matches.ts for convenience (optional).
+
+
+
+Extend buildBookerContext() to add a new field matchRecord:
+
+matchRecord: {
+  recentResults: MatchResult[],   // last 8 across the universe, light shape
+  activeRivalryHeadToHead: Array<{
+    rivalryTitle: string;
+    sideALabel: string;
+    sideBLabel: string;
+    record: { aWins: number; bWins: number; draws: number };
+  }>,
+  topStreaks: Array<{ wrestlerName: string; streak: "W" | "L"; length: number }>, // top 5
+}
+
+Strip wrestler IDs and replace with names so the AI sees readable text.
+
+
+
+3. API context (EDIT, light)
+
+In gp/lib/api-spec/openapi.yaml add a matchRecord object to the chat/booker request schemas, then regenerate the zod + react-query clients (pnpm --filter @workspace/api-zod run build etc. — Replit knows the workspace).
+
+In gp/artifacts/api-server/src/routes/booker.ts, extend SYSTEM_PROMPT with one paragraph:
+
+
+
+"When a matchRecord field is provided, treat it as canonical. Use head-to-head records to decide if a babyface needs a clean win, who is overdue for a title shot, and which streaks should be protected or broken."
+
+No model change. No new endpoint.
+
+
+
+4. UI: Wrestler Profile (NEW)
+
+Create gp/artifacts/universe-mode/src/components/WrestlerProfile.tsx. Full-screen overlay (fixed inset-0 z-50) opened by lifting state in Roster.tsx. Sections, top to bottom:
+
+
+
+
+
+Header: portrait, name, brand badge (reuse BRAND_THEME from Roster), alignment, role, status. Reuse ChampionBeltOverlay for current titles. "Edit Profile" opens existing WrestlerDialog. Close button (X) top right.
+
+
+
+At a Glance: 4 large stats — W-L-D, Win %, Streak (W4 / L2), Title Match Record. Pulled from deriveWrestlerStats.
+
+
+
+Currently In: cards for every Rivalry with status === "ACTIVE" whose sides include this wrestler. Tap → existing RivalryDetail.
+
+
+
+Title Reigns: read-only list from useTitleReigns() filtered to wrestlerId. "View in Legacy" link.
+
+
+
+Career Matches: scrollable list of wrestlerMatches(id), newest first. Each row: date, opponent (other side), outcome, finish, event. Tap a row → opens MatchLogger pre-filled in edit mode for that one match.
+
+
+
+Talent Noise: filtered inbox messages from WrestlerInbox.buildMessages() where wrestlerId === id.
+
+
+
+Notes: editable notes and creativeNotes.
+
+Empty states for every section (the app has good empty-state patterns already; mirror EmptyState from Dashboard.tsx).
+
+
+
+5. UI: fix the click bug (EDIT)
+
+In gp/artifacts/universe-mode/src/components/Roster.tsx:
+
+
+
+
+
+Add const [profileWrestlerId, setProfileWrestlerId] = useState<string | null>(null); at the top of WrestlersSection.
+
+
+
+Render <WrestlerProfile wrestlerId={profileWrestlerId} onClose={() => setProfileWrestlerId(null)} /> at the bottom of the section.
+
+
+
+Add onOpenProfile prop to CardMenu (around line 991). When provided, the card root div gets onClick={onOpenProfile} and cursor-pointer. Make sure the inner three-dot button keeps onClick={e => e.stopPropagation()} (it already does, line 1028) so clicking the dot does NOT also open the profile.
+
+
+
+In the cards-grid render block (around line 627) and the list render block (around line 530), pass onOpenProfile={() => setProfileWrestlerId(w.id)}.
+
+
+
+In selectMode, do not pass onOpenProfile (clicks should still toggle selection).
+
+
+
+Add a "View Profile" item at the top of cardActions for keyboard / right-click users.
+
+Also make wrestler thumbnails clickable in:
+
+
+
+
+
+gp/artifacts/universe-mode/src/components/WrestlerInbox.tsx — message avatar opens profile
+
+
+
+gp/artifacts/universe-mode/src/components/Dashboard.tsx — Talent Noise rows already navigate to inbox; leave that, but inside the Inbox the avatar should open profile
+
+
+
+6. UI: Match Logger (NEW)
+
+Create gp/artifacts/universe-mode/src/components/MatchLogger.tsx. One component, two open modes via props:
+
+type MatchLoggerProps =
+  | { mode: "blank"; date: UniverseDate; showId?: string; onClose: () => void }
+  | { mode: "fromShowCard"; entry: Extract<RivalryEntry, { kind: "show" }>; onClose: () => void }
+  | { mode: "edit"; matchId: string; onClose: () => void };
+
+UI: a sheet (use existing Sheet from components/ui/sheet.tsx) with:
+
+
+
+
+
+Top: date, show name (editable), event name (optional)
+
+
+
+Body: a list of match rows. Each row:
+
+
+
+
+
+Sides editor — + Add Side, each side is a chip-style multi-select of wrestlers (search-as-you-type from useRoster()). Default 2 sides for new rows.
+
+
+
+Winner picker — radio of side labels, plus "No Contest" and "Draw" pills.
+
+
+
+Outcome dropdown — MatchOutcome enum.
+
+
+
+Finish text input.
+
+
+
+Stipulation text input.
+
+
+
+Title at stake select (optional, from useChampionships()). When set, show "Title changed hands?" toggle.
+
+
+
+Stars slider (optional).
+
+
+
+Notes textarea (optional).
+
+
+
+Trash icon to remove the row.
+
+
+
++ Add Match button at bottom.
+
+
+
+Footer: Cancel / Save All. Save creates/updates MatchResult[] and stamps historyEntryId if mode === "fromShowCard".
+
+When mode === "fromShowCard", pre-populate rows from entry.data.matches:
+
+
+
+
+
+slot → row's slot label
+
+
+
+match (e.g. "Cody Rhodes vs Gunther") → fuzzy-match each name against useRoster() to fill sides; unmatched names become free-text labels that the user can resolve.
+
+
+
+result → goes into notes as "AI booked: ${result}" so the user has context but can pick the real winner.
+
+
+
+twist → into notes.
+
+When the user saves with titleChanged === true, show a toast with a "Open Legacy to record the title change" action button (links to the existing RecordTitleChangeDialog flow in gp/artifacts/universe-mode/src/components/Legacy.tsx). Do not auto-create a TitleReign — keep Legacy's existing UX as the source of truth, just point the user there.
+
+
+
+7. UI: where MatchLogger opens FROM
+
+Three entry points, exactly as we agreed:
+
+7a. From a booked show (Resolve Results)
+
+Edit gp/artifacts/universe-mode/src/components/ResultScreen.tsx. When entry.kind === "show", add a prominent "Resolve Results" button in the header. If results already exist for this historyEntryId (look up via useMatchResults), label it "Edit Results" and show a small "N matches logged" badge.
+
+7b. Bulk from Dashboard
+
+Edit gp/artifacts/universe-mode/src/components/Dashboard.tsx. Add a "Log Tonight's Results" CTA inside or just below the "Tonight's Creative Brief" panel when today's universeDate is a show night and there is no MatchResult with date === universeDate yet. Opens MatchLogger mode="blank" pre-filling showId from today's show.
+
+7c. From Universe Clock (small affordance)
+
+In gp/artifacts/universe-mode/src/components/UniverseClock.tsx, after handleAdvance, if the previous date was a show night and no results exist, show a one-shot toast with "Log results" action — same opener as 7b but for the prior date.
+
+
+
+8. Surfacing records elsewhere (EDIT, small)
+
+
+
+
+
+gp/artifacts/universe-mode/src/components/RivalryDetail.tsx: at the top of each rivalry, show head-to-head from deriveHeadToHead(sideA.wrestlerIds, sideB.wrestlerIds, matches). Format: CODY 2 — 1 GUNTHER (1 draw).
+
+
+
+gp/artifacts/universe-mode/src/components/Dashboard.tsx: add a small "Hottest Streak" row inside or below "Faction Watch" — top wrestler by currentStreak.length where kind === "W".
+
+
+
+9. Migration
+
+There is no migration. useLocalStorage("umc.matchResults", []) defaults to [] for existing users. Adding the key to APP_STORAGE_KEYS is the only required wiring; the just-shipped universe export/import will pick it up automatically.
+
+
+
+10. Test checklist (manual, before shipping)
+
+
+
+
+
+Click any wrestler card on Roster → Wrestler Profile opens.
+
+
+
+Right-click still opens the context menu, three-dot still opens dropdown, neither also opens the profile.
+
+
+
+In selectMode, clicking a card toggles selection (does NOT open profile).
+
+
+
+Profile shows correct W-L-D, win %, streak after logging matches.
+
+
+
+Profile shows correct title reigns pulled from Legacy data.
+
+
+
+Profile shows active rivalries this wrestler is in.
+
+
+
+AI-booked show → "Resolve Results" → MatchLogger opens with rows pre-filled from ShowCard.matches.
+
+
+
+Bulk logger from Dashboard works on a blank night.
+
+
+
+Tag match (2v2): both members of winning side get a W.
+
+
+
+Triple Threat (1v1v1): only winner gets W, the other two get L.
+
+
+
+Draw / No Contest: nobody gets a W or L, streak resets.
+
+
+
+DQ / Countout: winner side still gets W.
+
+
+
+titleChanged === true shows the toast linking to Legacy. Legacy reign data is untouched until the user goes there and uses the existing RecordTitleChangeDialog.
+
+
+
+RivalryDetail shows head-to-head at the top.
+
+
+
+AI Chat: ask "who's overdue for a clean win?" — response cites match record, not just storyline beats.
+
+
+
+Universe export downloaded as JSON contains umc.matchResults. Re-importing on a clean browser restores the matches.
+
+
+
+Factory Reset wipes umc.matchResults (verified because it's in APP_STORAGE_KEYS).
+
+
+
+Files at a glance
+
+NEW:
+
+
+
+
+
+gp/artifacts/universe-mode/src/lib/matches.ts
+
+
+
+gp/artifacts/universe-mode/src/lib/matches.test.ts
+
+
+
+gp/artifacts/universe-mode/src/components/WrestlerProfile.tsx
+
+
+
+gp/artifacts/universe-mode/src/components/MatchLogger.tsx
+
+EDITED:
+
+
+
+
+
+gp/artifacts/universe-mode/src/lib/storage.ts — APP_STORAGE_KEYS + buildBookerContext.matchRecord
+
+
+
+gp/artifacts/universe-mode/src/components/Roster.tsx — onOpenProfile, fix click bug
+
+
+
+gp/artifacts/universe-mode/src/components/Dashboard.tsx — "Log Tonight's Results" + "Hottest Streak"
+
+
+
+gp/artifacts/universe-mode/src/components/UniverseClock.tsx — post-advance toast
+
+
+
+gp/artifacts/universe-mode/src/components/ResultScreen.tsx — "Resolve Results" button on show entries
+
+
+
+gp/artifacts/universe-mode/src/components/RivalryDetail.tsx — head-to-head badge
+
+
+
+gp/artifacts/universe-mode/src/components/WrestlerInbox.tsx — avatars open profile
+
+
+
+gp/lib/api-spec/openapi.yaml — matchRecord field on chat/booker request
+
+
+
+gp/artifacts/api-server/src/routes/booker.ts — one paragraph in SYSTEM_PROMPT
+
+NOT TOUCHED:
+
+
+
+
+
+gp/artifacts/universe-mode/src/components/Legacy.tsx — title reigns stay the source of truth for championships
+
+
+
+gp/artifacts/universe-mode/src/components/SettingsView.tsx — export/import already updated
+
+
+
+Any seed file, any fonts, any chairman, any calendar logic

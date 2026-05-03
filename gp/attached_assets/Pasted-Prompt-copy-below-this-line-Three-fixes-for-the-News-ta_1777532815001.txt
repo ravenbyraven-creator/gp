@@ -1,0 +1,41 @@
+Prompt — copy below this line
+Three fixes for the News tab.
+Fix 1 — Remove the placeholder scratch graphic next to the NEWS title.
+I'm uploading my own scratch logo as a static asset. For now, just remove the broken scratch SVG that's currently rendering next to the NEWS text at the top of the news page. Leave a placeholder <img> element in the same spot pointing to /news/scratch-logo.png so I can drop the file in later. If the file doesn't exist, the broken-image fallback should be a simple display: none so the page doesn't show a broken-image icon. Keep the layout slot reserved at roughly 200x60px width.
+Also — the current page has "GORILLA POSITION" appearing twice — once in the main app header (correct, leave alone) and once again inside the news page header next to the NEWS scratch (redundant, remove). Just keep the scratch logo placeholder alone in that slot. The main app header already says "GORILLA POSITION" — no need to repeat it on every tab.
+Fix 2 — Remove red borders from buttons. Make them monogram and clean.
+The current PRINT WEEKLY ISSUE, SPILL A RUMOR, and READ ISSUE buttons have red border outlines around dark gradient fills. Change them to clean monogram chrome buttons:
+
+Background: same dark gray gradient as before
+Border: 1px solid #3a3a3a (the chrome silver tone, not red)
+Text: white, uppercase, bold (keep current font)
+Hover state: border brightens to #5a5a5a, slight inner highlight, no red anywhere
+Active/pressed state: subtle inner shadow
+
+No red outlines, no red glows, no red hover. Pure monogram steel — the red on the news page should be reserved for HEADLINES, the breaking ticker, and the section accent dashes only.
+Fix 3 — Ensure the hero panel and feature cards actually show photos when a wrestler with imageUrl is matched.
+Right now the hero panel and the "INSIDE THIS ISSUE" feature cards are showing as empty dark gradients. Audit the photo lookup logic:
+
+When a generated issue has a featuredWrestlerName on the cover or a feature, the code should case-insensitive name-match against the roster, then check if that wrestler has an imageUrl set.
+If matched and has a photo: render that photo as the full-bleed background with the existing magazine treatment (contrast, saturation, vignette, gradient overlay for text legibility).
+If matched but no photo: render the wrestler's initials in big display font as the placeholder, NOT a flat black gradient.
+If no name match in the roster at all: log a console warning with the name the AI returned (for debugging) and render a generic placeholder.
+
+Verify this works by generating a test issue where the featured wrestler IS in the roster and DOES have an imageUrl, and confirm the photo actually renders. If it doesn't, the matching logic is the bug — fix it.
+What NOT to do
+
+Do NOT change any other styling on the news page. The dark steel background, the layout structure, the HEADLINES sidebar, the INSIDE THIS ISSUE row, the breaking ticker, the typography — all stay exactly as they are.
+Do NOT modify the MagazineCover, IssueView, or RumorView components.
+Do NOT modify the AI generation, the OpenAPI spec, or the data model.
+Do NOT add red anywhere new. Reduce, don't add.
+
+Acceptance check
+
+ No red borders on any buttons in the news tab
+ No duplicate "GORILLA POSITION" text on the news page header
+ Scratch logo slot reserved as an <img> pointing to a path I'll fill later
+ Hero panel renders the featured wrestler's photo when that wrestler exists in roster and has imageUrl
+ Feature cards in "INSIDE THIS ISSUE" render photos the same way
+ pnpm run typecheck and pnpm run build pass
+
+Build it, screenshot a generated issue, and send back so I can verify.

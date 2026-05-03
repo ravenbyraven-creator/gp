@@ -1,0 +1,107 @@
+I want to redesign and fix the Settings tab/panel.
+
+The current Settings page feels like too much scrolling. Typography takes up too much room, Chairman selection takes up too much room, and some settings do not feel fully polished. I want Settings to feel like a compact premium control panel that matches the rest of Gorilla Position.
+
+Before changing:
+- Review the existing SettingsView component.
+- Review how theme/font/chairman/localStorage settings currently work.
+- Review how chairman is passed into AI context, Chat, Creative Desk, News, and booking flows.
+- Do not break existing saved user data unless the user intentionally uses Factory Reset.
+
+Main goals:
+1. Make Settings more compact and easier to use.
+2. Replace oversized typography controls with a smaller dropdown/selection UI.
+3. Replace oversized Chairman selection cards with a cleaner dropdown/selection menu.
+4. Verify Chairman selection is actually wired into AI context and Chat behavior.
+5. Fix Factory Reset so it fully resets the app back to first-open state.
+
+Settings UI / UX:
+- Make the Settings page feel like a premium control panel, not a long scroll page.
+- Use compact sections/cards.
+- Reduce vertical spacing.
+- Avoid huge cards for simple choices.
+- Keep labels clear and polished.
+- Use the app’s existing dark/red/gold creative-room style.
+- Make it responsive on mobile.
+
+Typography Settings:
+- The typography/font selection currently takes too much space.
+- Replace large font preview cards with a compact dropdown or compact segmented/select menu.
+- Still show a small preview of the selected font, but do not let it dominate the page.
+- Make sure changing typography still updates the app font as before.
+- Preserve existing font setting storage.
+
+Chairman Selection:
+- Keep the Chairman feature because I like the idea.
+- Make the chairman selection more compact.
+- Replace large chairman cards with a dropdown/select menu or compact selection panel.
+- After selecting a chairman, show a small summary card:
+  - chairman name
+  - booking style
+  - short description
+- Make sure Chairman selection is actually wired into the AI context.
+- Verify Chat uses the selected chairman.
+- Verify Creative Desk/storyline/show/promo/surprise generation uses the selected chairman.
+- Verify News/Rumors use chairman context if they currently should.
+- Do not just save the chairman visually; it must affect AI prompt/context.
+
+Factory Reset:
+- The current Factory Reset does not fully work.
+- Fix Factory Reset so it resets the app like the user opened it for the first time.
+- It should clear all Gorilla Position localStorage data, including:
+  - roster
+  - championships
+  - stables
+  - rivalries
+  - rivalry chapters
+  - rivalry memories
+  - history/canon moments
+  - chat
+  - chat sessions
+  - active chat session
+  - news/issues/rumors
+  - inbox/talent messages
+  - shows if user-customized
+  - universe date
+  - premium events
+  - getting started dismissed flag
+  - chairman selection
+  - theme/font settings if they are part of first-open state
+- Use a centralized list/helper for app storage keys so future features can be added safely.
+- After reset, reload or reinitialize the app cleanly.
+- The first-run guide should appear again after Factory Reset.
+- Seed/default roster and seed/default shows should behave exactly like first launch.
+- Add a confirmation step before reset.
+- Make the reset warning clear and serious.
+- Do not require users to manually refresh after reset.
+
+Danger Zone:
+- Keep Danger Zone visually separated.
+- Make destructive actions clearly styled.
+- Add confirmation dialog/modal for Factory Reset.
+- If there are other danger actions, make sure they work and explain exactly what they delete.
+
+Suggested Settings Layout:
+- App Preferences
+  - Theme
+  - Typography dropdown
+- Creative Voice
+  - Chairman dropdown
+  - compact selected-chairman summary
+- Data / Backup
+  - any export/import/reset tools if they exist
+- Danger Zone
+  - Factory Reset with confirmation
+
+Important:
+Do not make Settings look like a generic form. Match the polished UI Replit added to Roster 2.0 and the Gorilla Position dashboard.
+
+Testing / Verification:
+- Confirm typography dropdown changes the app font.
+- Confirm chairman dropdown saves correctly.
+- Confirm selected chairman is included in AI context for Chat and Creative Desk.
+- Confirm Settings no longer feels like endless scrolling.
+- Confirm Factory Reset clears all app data and returns to first-open state.
+- Confirm first-run guide appears again after reset.
+- Confirm no broken localStorage state remains after reset.
+- Run typecheck and tests if available.

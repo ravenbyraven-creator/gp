@@ -1,0 +1,60 @@
+I want to polish the Roster 2.0 UI. The feature works, but the edit/create menus for Wrestlers, Championships, and Stables look cheap and generic right now. They feel like plain AI-generated boxes and do not match the rest of my app’s aesthetic.
+
+Before changing anything, review the existing app design language across the Creative Desk, Rivalries, News, Chat, and existing roster UI. Match that same visual style.
+
+Goal:
+Make the Roster 2.0 edit/create experience feel premium, WWE-inspired, and part of the same app. It should feel like a dark backstage creative board / GM office interface, not a basic form popup.
+
+Scope:
+- Improve the create/edit UI for:
+  - Wrestlers
+  - Championships
+  - Stables / Tag Teams
+- Do not remove the current functionality.
+- Do not break existing saved data.
+- Do not redesign the entire app.
+- Focus on visual polish, layout, hierarchy, spacing, and interaction quality.
+
+Design Requirements:
+- Replace generic plain boxes/modals with polished panels, sheets, or cards that match the app.
+- Use the existing dark theme, gradients, borders, shadows, gold/red accents, and typography patterns already used elsewhere.
+- Make each editor feel specific:
+  - Championship editor should feel like a title management card, with belt image/photo emphasized.
+  - Stable editor should feel like a faction management card, with logo/photo and members emphasized.
+  - Wrestler editor should feel like a talent profile card, with photo, brand, alignment, status, and role emphasized.
+- Avoid making Wrestlers, Championships, and Stables look like the exact same form with different labels.
+- Add better section headers, helper text, icons if the app already uses them, and cleaner grouping.
+- Improve spacing so the forms feel intentional, not cramped.
+- Make upload/change/remove image controls look polished.
+- Use preview cards inside the editor so users can see how the wrestler/title/stable will look.
+- For stables with no logo, show the member-name fallback nicely, like:
+  - Randy Orton & Batista
+  - Roman Reigns, Solo Sikoa & Jimmy Uso
+
+UX Requirements:
+- Make forms easier to scan.
+- Group related fields:
+  - Identity
+  - Image / Logo
+  - Brand / Alignment / Status
+  - Members / Champions
+  - Creative Direction / Notes
+- Keep manual editing simple and fast.
+- Add kayfabe helper copy where useful, but do not overdo it.
+- Empty states and validation should feel in-universe, not generic.
+- Buttons should feel branded:
+  - Save Championship
+  - Crown Champion
+  - Save Stable
+  - Assemble Faction
+  - Save Talent Profile
+
+Important:
+This should not look like a default shadcn dialog or plain generated form. It should look like it belongs in Gorilla Position / my Universe Mode writers’ room app.
+
+Verification:
+- Confirm create/edit still works for wrestlers, championships, and stables.
+- Confirm images/logos still save and display.
+- Confirm existing roster data still loads.
+- Confirm responsive layout works on smaller screens.
+- Run typecheck and tests if available.

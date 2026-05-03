@@ -1,0 +1,489 @@
+I want to add a major new tab to my Gorilla Position app: NEWS — a Russo-era wrestling magazine generator. This is Phase 1 of 2. Phase 1 builds the visual deliverable: a newsstand UI, a single weekly issue generator (manual trigger), a single rumor spill generator (manual trigger), the cover layout engine, and the magazine photo treatment system. Phase 2 (sent separately later) adds auto-trigger on universe advance and integration with the Rivalries system.
+Read Universe-Mode/UNIVERSE_MODE_ASSISTANT.md and Universe-Mode/VISION.md BEFORE writing any code so you understand the project conventions — especially the design philosophy, the API-first rule, no emojis, and the localStorage persistence promise. The golden rule from VISION.md applies: if 2K26 already does it, don't duplicate it. The magazine generates AFTER play sessions — it's the morning-after-Raw experience, downstream of the controller.
+Critical: the color rule changes for this tab only
+Your app's monochrome rule (with brand red as a logo/matchup/active-tab exception) holds across the entire app except inside the NEWS tab. Inside the NEWS tab and any modal/popup it opens, the full Russo-era WWF Magazine palette is sanctioned: red, yellow, green outlines, blue, white, black, plus paper-texture cream tones for the lo-fi magazine treatment. Outside the NEWS tab, monochrome + red still rules everything.
+This is the deliberate visual contrast — like the Result Screen is loud earned by calm chrome, the Newsstand is loud earned by everything else being calm.
+Document this in VISION.md and UNIVERSE_MODE_ASSISTANT.md as a sanctioned exception. Do not let this color permission leak anywhere else in the app.
+Tab placement — first tab in the nav
+In AppHeader.tsx (and wherever the tab order is defined), place the new NEWS tab as the first tab, ahead of Creative Desk. The new order:
+NEWS / CREATIVE DESK / ROSTER / RIVALRIES
+Use the lucide-react Newspaper icon if your nav uses icons. Label is NEWS in the same display-font caps treatment the other tabs use.
+What we're building
+Two output types
+1. Weekly Issue — a full magazine issue. Cover + 3-4 short feature articles + 1 sidebar dirt-sheet column + 1 "WHAT'S NEXT" closing piece. Generated with one button tap. Takes ~20-30 seconds. Saves to localStorage and joins the cover stack on the newsstand.
+2. Rumor Spill — a single dirt-sheet item. One paragraph, attributed to "anonymous sources." Generated separately. Takes ~5 seconds. Shows as a smaller card in a "BREAKING" strip on the newsstand.
+In Phase 1, both are manual-only — buttons on the newsstand. Phase 2 adds auto-triggers.
+The newsstand layout (the page itself)
+Top to bottom:
+Header strip
+
+NEWS title in display font, uppercase. To the right, two CTAs:
+
++ NEW ISSUE — primary button, generates a weekly issue
++ RUMOR SPILL — secondary button, generates a rumor
+
+
+
+Cover stack
+
+The latest issue's cover renders BIG — full width on mobile, max ~600px wide on desktop, anchored center
+Below the latest cover, a horizontal scroll row of past issue covers as thumbnails (~140px wide each). Tap any to open
+If no issues exist, an empty state: a stylized "newsstand" graphic (use simple SVG of stacked rectangles representing magazines) with the line "No issues on the stand. Generate the first one."
+
+Breaking strip (rumors)
+
+Below the cover stack, a horizontal strip titled BREAKING in red, condensed display font
+Each rumor is a small card showing: the headline, a 1-line excerpt, "anonymous sources" attribution, and the universe date stamped
+Newest rumors first. Cap visible to 8; older rumors accessible via a "View all rumors" expand button
+
+Tap interactions
+
+Tap a cover (latest or thumbnail) → opens the Issue View popup (full screen modal)
+Tap a rumor card → opens the Rumor View popup (smaller modal)
+
+The Issue View popup
+Full-screen modal overlay matching the existing Dialog pattern. X to close, ESC works. Inside the modal, the issue renders as a series of "spreads" the user scrolls through vertically.
+Spread 1: The cover
+Re-renders the cover at full size (this matches the cover that was on the stack). Fixed elements per the references:
+
+Masthead top-left or top-center: the magazine name (e.g., "GORILLA POSITION" or a generated issue-specific brand). Use display-font, ALL CAPS, red fill, white outline. Consider a different font weight per issue to mimic real-magazine variation
+Tagline / barcode area top-right: small caps text reading the universe date and "ISSUE #N" — N being the count of issues ever generated. Plus a fake barcode (CSS bars) and a fake price like "$5.99 US"
+Featured photo: full-bleed background. The wrestler image is pulled from the Roster's imageUrl for the cover-featured wrestler. Apply the magazine photo treatment (described below) heavily here
+Primary headline: massive, layered, often partially overlapping the wrestler's body. Use Oswald or your existing display font, condensed, ALL CAPS. Sometimes layered (one word stacked on top of another, slight rotation). Yellow or white fill with red outline, or vice versa
+2-3 secondary teasers stacked along one side: short caps headlines + 1-line deks. Each teaser maps to a feature article inside the issue
+Burst sticker somewhere prominent: yellow circle or starburst with green outline, calling out one specific thing ("DIRT SHEET INSIDE!" or "[wrestler name]'s SHOCKING REVEAL!"). Slight rotation. Use a CSS clip-path star or just a circle with rotated text
+Slight overall page imperfection: 0.5°-1.5° rotation, paper grain texture overlay, soft shadow, faint coffee-stain or fold-crease overlay (subtle — not cartoonish)
+
+Spread 2: Lead feature
+A two-column-ish layout (single column on mobile). Treatment:
+
+Headline in big display font with magazine-treatment styling
+Byline at the top: "by Anonymous Sources" or a fake reporter name
+Pull quote: ~25% of the way through the article, a giant italicized pull quote in different font (Lora or Oblata Display from your existing font set), with red quotation marks
+Body text: serif or your Lora font, 11-13px, slightly increased line-height. Sometimes drop-cap on the first letter
+An inset photo: a second photo of the article's subject (or a different wrestler involved), with magazine treatment
+Slight imperfection: page texture, very faint halftone dot overlay
+
+Spreads 3-5: Mid-card features
+Same general treatment as the lead, smaller scale. Each is one of the secondary teasers from the cover.
+Spread 6: Dirt Sheet sidebar
+A single-page treatment styled differently:
+
+Different visual language: looks like a typewritten dirt-sheet column. Use JetBrains Mono (your existing mono font). Background tint slightly off-white/yellowed
+Header: "BACKSTAGE WHISPERS" or "BEHIND THE CURTAIN" in slab-serif or condensed display
+Body: 4-6 short bulleted (with custom dot bullets, NOT emojis) rumor items. Each is 1-3 sentences. Snide, "sources tell us", insider tone
+A "Heat Index" footer: prose only, "Tensions running high in the [brand] locker room" — no numerical stats, no fire emojis
+
+Spread 7: WHAT'S NEXT
+The closing tease. Single short article looking forward to the upcoming PPV or next storyline beats:
+
+Header: "ON THE HORIZON" or "NEXT WEEK"
+Body: 2-3 short paragraphs teasing what's coming
+A countdown panel: "WrestleMania — 6 weeks out" pulled from the actual upcomingEvents data
+Final tagline: "Subscribe — [Issue #N+1] hits the stand [next universe week]"
+
+Bottom of issue view
+A "Mark as read" toggle (saves a flag on the issue) and a "Download as image" button (Phase 2 maybe — for now, mark as TODO and add a placeholder).
+The Rumor View popup
+Smaller modal (~600px wide on desktop, full screen on mobile). Single piece of content:
+
+Header: red strip, white text "BREAKING" or "RUMOR HAS IT" in condensed caps
+Headline: big bold display font
+Date: small, universe time
+Source line: italic, "according to anonymous backstage sources" or similar fake attribution
+Body: 1-2 paragraphs of the rumor itself
+Disclaimer footer: small italic gray text — "Rumors and conjecture. Treat as wrestling kayfabe."
+Delete button at the bottom (with confirm) — rumors can be discarded
+
+Data model
+Add new types and localStorage keys.
+In artifacts/universe-mode/src/lib/storage.ts (or split to a new lib/news.ts):
+tstype IssueFeature = {
+  kind: "lead" | "feature" | "dirtsheet" | "whatsnext";
+  headline: string;        // ALL CAPS display headline
+  dek?: string;            // sub-headline / one-line teaser
+  byline?: string;         // fake reporter name or "Anonymous Sources"
+  body: string;            // markdown-allowed prose
+  pullQuote?: string;      // a quotable line, used in lead/feature spreads
+  featuredWrestlerId?: string;  // ref to roster wrestler for inset photo
+};
+
+type IssueCoverTeaser = {
+  headline: string;        // ALL CAPS short
+  dek: string;             // 1-line elaboration
+  featureIndex: number;    // which feature inside the issue this maps to
+};
+
+type Issue = {
+  id: string;              // crypto.randomUUID
+  issueNumber: number;     // sequential
+  universeDate: UniverseDate;
+  createdAt: number;
+  cover: {
+    masthead: string;      // e.g., "GORILLA POSITION", "RAW MAGAZINE", "WRESTLE WEEKLY"
+    primaryHeadline: string;     // big cover headline
+    primarySubhead?: string;     // optional second line
+    featuredWrestlerId?: string; // ref to roster
+    teasers: IssueCoverTeaser[]; // 2-3
+    burstSticker?: string;       // text inside the burst sticker
+    coverColor: "RED" | "BLUE" | "YELLOW" | "BLACK"; // background tint of the cover
+  };
+  features: IssueFeature[]; // 3-5 entries (lead, 1-3 features, dirtsheet, whatsnext)
+  read: boolean;
+};
+
+type Rumor = {
+  id: string;
+  universeDate: UniverseDate;
+  createdAt: number;
+  headline: string;
+  body: string;
+  fakeSource: string;     // e.g., "Anonymous Backstage Source", "Locker Room Insider"
+};
+New localStorage keys:
+
+umc.issues — array of Issue
+umc.rumors — array of Rumor
+
+Add hooks: useIssues(), useRumors() matching existing patterns.
+OpenAPI changes — two new endpoints
+POST /booker/issue
+Generates a complete weekly issue. Request body extends the standard booker context (roster, chairman, currentDate, upcomingEvents, recentEvents, activeRivalryMemories, etc) plus:
+yamlissueNumber:
+  type: integer
+  description: Sequential issue number, used in cover styling and content references.
+Response body — IssueGenerationResult:
+yamlIssueGenerationResult:
+  type: object
+  required: [cover, features]
+  properties:
+    cover:
+      $ref: "#/components/schemas/IssueCoverData"
+    features:
+      type: array
+      minItems: 4
+      maxItems: 6
+      items:
+        $ref: "#/components/schemas/IssueFeatureData"
+
+IssueCoverData:
+  type: object
+  required: [masthead, primaryHeadline, teasers, coverColor]
+  properties:
+    masthead:
+      type: string
+      description: Magazine name. The AI should vary this per issue — sometimes "GORILLA POSITION", sometimes "RAW MAG", sometimes "WRESTLE WEEKLY".
+    primaryHeadline:
+      type: string
+      description: Cover headline, ALL CAPS, max 6 words. Bold, dramatic, Russo-tone.
+    primarySubhead:
+      type: string
+    featuredWrestlerName:
+      type: string
+      description: Name of the wrestler whose photo will be on the cover. Must be a name in the roster.
+    teasers:
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: object
+        required: [headline, dek, featureIndex]
+        properties:
+          headline:
+            type: string
+          dek:
+            type: string
+          featureIndex:
+            type: integer
+            description: Index into the features array this teaser maps to.
+    burstSticker:
+      type: string
+      description: Short punchy text for the yellow burst sticker on the cover.
+    coverColor:
+      type: string
+      enum: [RED, BLUE, YELLOW, BLACK]
+
+IssueFeatureData:
+  type: object
+  required: [kind, headline, body]
+  properties:
+    kind:
+      type: string
+      enum: [lead, feature, dirtsheet, whatsnext]
+    headline:
+      type: string
+    dek:
+      type: string
+    byline:
+      type: string
+      description: Fake reporter name or "Anonymous Sources".
+    body:
+      type: string
+      description: 150-400 words of magazine-style prose. Russo-era voice — punchy, edgy, dramatic, slightly tabloid.
+    pullQuote:
+      type: string
+      description: One quotable line from the article, suitable for the pull quote spread treatment.
+    featuredWrestlerName:
+      type: string
+      description: Wrestler name for the inset photo on this feature's spread.
+POST /booker/rumor
+Generates a single rumor.
+Request body: standard booker context, no extra fields.
+Response body — RumorGenerationResult:
+yamlRumorGenerationResult:
+  type: object
+  required: [headline, body, fakeSource]
+  properties:
+    headline:
+      type: string
+      description: Short punchy rumor headline, ALL CAPS, max 8 words.
+    body:
+      type: string
+      description: 1-3 paragraphs of dirt-sheet rumor content.
+    fakeSource:
+      type: string
+      description: Attribution like "Anonymous Backstage Source" or "Locker Room Insider".
+After spec changes, run pnpm --filter @workspace/api-spec run codegen. Do not hand-edit generated files.
+Server route changes
+In artifacts/api-server/src/routes/booker.ts:
+POST /booker/issue handler
+Follows the same pattern as the existing endpoints (build context, call OpenAI in JSON mode, validate with Zod). The system prompt is the most important part:
+You are the editor-in-chief of a Russo-era wrestling magazine — think WWF Magazine 2000, RAW Magazine 2001. Your job is to write a complete weekly issue that reacts to the user's WWE 2K Universe Mode like real wrestling media would.
+
+VOICE & TONE — strict:
+- Russo-era WWF Magazine: edgy, irreverent, slightly tabloid, willing to imply backstage drama
+- Use kayfabe — treat wrestlers as real people with real conflicts
+- Use phrases like "sources close to" / "according to backstage chatter" / "what they don't want you to know"
+- Headlines are PUNCHY and ALL CAPS, max 6 words on the cover
+- Pull quotes are dramatic and quotable
+- The dirt-sheet section reads like a backstage rumor mill
+- Avoid corporate-WWE-website tone. Avoid generic recap voice.
+
+DO NOT:
+- Use emojis anywhere
+- Reference real-life scandals, divorces, deaths, or out-of-character details about real wrestlers
+- Repeat content across features — each feature should hit a different angle
+- Use the word "fans" generically — instead use "the WWE Universe", "smart fans", "longtime viewers"
+
+WHAT TO COVER (in order of priority):
+1. Most recent night notes (recentEvents) — these aired on TV, treat as canon
+2. Active rivalries' memories — long-term arcs to thread through
+3. Upcoming PPVs (upcomingEvents) — build hype toward them
+4. The chairman's booking style — let it color the editorial tone
+
+STRUCTURE — return JSON matching the schema:
+- 1 cover with primary headline, 2-3 teasers, optional burst sticker
+- Features array of 4-6 items: 1 "lead" (the cover story, longest), 1-3 "feature" (mid-card pieces), 1 "dirtsheet" (backstage rumors column with bulleted items in the body), 1 "whatsnext" (closer teasing the next week)
+- Each feature: headline, optional dek, optional byline, body (150-400 words), optional pullQuote, optional featuredWrestlerName
+- Cover colors rotate — pick the one that fits the issue's mood: RED (rage/conflict), BLUE (mystery/cool), YELLOW (chaos/news), BLACK (heel-dominant, ominous)
+
+Return valid JSON only. Do not wrap in markdown code blocks.
+POST /booker/rumor handler
+Similar pattern. System prompt:
+You are a wrestling dirt-sheet writer in the Russo era. Generate ONE punchy rumor item that fits the user's universe context.
+
+A rumor item is:
+- One headline, ALL CAPS, 4-8 words
+- 1-3 paragraphs of body text — speculative, attributed to anonymous sources
+- A fake source attribution like "Anonymous Backstage Source", "Locker Room Insider", "A Frequent Visitor to Titan Towers"
+
+The rumor should feel:
+- Slightly scandalous but kayfabe-friendly
+- Connected to real wrestlers in the user's roster
+- Tied to ongoing rivalries when possible
+- The kind of thing that gets fans buzzing online
+
+Examples of good rumor types:
+- Backstage tensions between two wrestlers in the same faction
+- A surprise champion changeover being teased
+- A wrestler considering a heel/face turn
+- A returning star spotted at TV tapings
+- A power play within a stable
+
+DO NOT:
+- Reference real-life out-of-character scandals
+- Use emojis
+- Reference wrestlers not in the roster
+- Sound like a corporate press release
+
+Return valid JSON. Do not wrap in markdown code blocks.
+Both endpoints get the standard context preamble (roster, chairman, currentDate, upcomingEvents, recentEvents, activeRivalryMemories) prepended to their system prompts.
+Frontend — file structure
+New files to create:
+
+artifacts/universe-mode/src/components/News.tsx — main newsstand page
+artifacts/universe-mode/src/components/IssueView.tsx — full issue popup with all spreads
+artifacts/universe-mode/src/components/RumorView.tsx — single rumor popup
+artifacts/universe-mode/src/components/MagazineCover.tsx — the cover layout component (used both on the newsstand and as the first spread inside IssueView)
+artifacts/universe-mode/src/lib/news.ts — types, hooks, helpers
+
+Modify:
+
+artifacts/universe-mode/src/App.tsx — add NEWS as the first tab
+artifacts/universe-mode/src/components/AppHeader.tsx — tab order and label
+
+The MagazineCover component — the heart of the visual system
+This is the component that will get the most design attention. Build it carefully.
+Layout
+A box with:
+
+Aspect ratio roughly 3:4 (magazine portrait)
+Background fill from cover.coverColor mapped to actual hex values:
+
+RED: #dc1e1e (your existing brand red)
+BLUE: #1e4ebf (Russo-era WWF cover blue)
+YELLOW: #f4c41a (Russo-era yellow)
+BLACK: #0a0a0a
+
+
+The wrestler photo is rendered full-bleed on top of the color, with magazine treatment applied (described below)
+Layered text and stickers absolutely positioned on top
+
+Mandatory cover elements
+
+Masthead — top-left or top-center. The text from cover.masthead. Display font, ALL CAPS, very large. Filled in white with red outline (or red with white outline depending on background color). Slight italic/skew for that "moving fast" feel.
+Issue strip — top-right. Small text: ISSUE #${issueNumber} and the universe date formatted. Underneath, a fake CSS barcode (a series of vertical bars with varying widths). Underneath that, a fake price like $5.99 US. All in small caps.
+Featured wrestler photo — covers most of the cover area. Pulled from the roster by name → id → imageUrl. If wrestler isn't found or has no image, show a stylized placeholder with their initials in massive display font.
+Primary headline — the showpiece. Should crash into or wrap around the photo. Massive, ALL CAPS. Implementation:
+
+Use Oswald or Righteous (your existing fonts)
+Two-line headlines should stagger — second line offset horizontally from the first by 5-15%
+Slight rotation (-2° to +2°)
+Strong text-shadow for legibility against any background
+Color: white with thick red outline if cover is colorful; yellow with black outline if cover is BLUE; etc
+
+
+Secondary teasers — 2-3 stacked on one side (left or right depending on where the photo is). Each teaser:
+
+Small ALL CAPS headline (display font, ~14-18px)
+Sub-line (the dek) in lighter weight, smaller (~11px)
+Sometimes a colored underline or a small bullet character
+Slight per-teaser rotation (-1° to +1°)
+
+
+Burst sticker — if present, a yellow circle (or 8-pointed star using SVG/clip-path) with green outline. Text inside in red display font, slightly rotated. Position: usually middle-right or bottom-right, partially overlapping the photo.
+Page imperfection layer — applied as the topmost overlay:
+
+A subtle paper-texture image (use a CSS noise or grain SVG filter)
+0.5-1.5° rotation on the entire cover
+Soft drop shadow (the cover should look like an object on a desk)
+Optionally: a subtle CSS gradient simulating a fold or a slight vignette
+
+
+
+The photo treatment system
+This is critical. Roster photos are clean digital photos. Magazine photos look different. Apply CSS filters and overlays to make any roster photo look like 2000 magazine cover stock:
+css/* Base treatment, applied to every featured cover photo */
+.magazine-photo {
+  filter:
+    contrast(1.15)
+    saturate(0.95)
+    brightness(0.98);
+}
+
+/* Add a halftone dot overlay on top, blending */
+.magazine-photo::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url('/news/halftone.svg');  /* generate this asset */
+  mix-blend-mode: multiply;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* Add a slight grain layer */
+.magazine-photo::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image: url('/news/grain.png');
+  mix-blend-mode: overlay;
+  opacity: 0.4;
+  pointer-events: none;
+}
+Generate the halftone SVG and grain PNG as static assets in artifacts/universe-mode/public/news/. Use simple repeatable patterns. Halftone = 4x4px black dots on transparent. Grain = a 200x200 px noise PNG (you can generate this in code or include a small static one).
+These treatments turn a clean roster photo into something that looks like it was printed in WWF Magazine July 2000.
+Generation flow (manual, Phase 1)
+Generating a weekly issue
+
+User taps + NEW ISSUE on the newsstand
+App computes the next issueNumber = (issues.length + 1)
+App calls useGenerateIssue mutation with current booker context + issueNumber
+Loading state: full-screen overlay with a spinner and the text "PRINTING THIS WEEK'S ISSUE..." (display font, large). Lock UI during generation
+On response:
+
+Map featuredWrestlerName strings to wrestler IDs via case-insensitive name matching against the roster. Drop the photo if no match (fall back to the placeholder)
+Construct an Issue object and append to umc.issues
+Auto-open the IssueView popup for the new issue
+Sonner toast: "ISSUE #N HITS THE STAND"
+
+
+On failure: kayfabe error stamp — "PRINTING DELAYED" with body "The presses are jammed. Try again in a moment." No raw error message.
+
+Generating a rumor spill
+
+User taps + RUMOR SPILL
+App calls useGenerateRumor with current booker context
+Loading state: smaller spinner, text "DIGGING UP DIRT..."
+On response: construct a Rumor and append to umc.rumors. Toast: "BREAKING — [headline]". Auto-open the RumorView popup
+On failure: kayfabe error — "SOURCES WENT QUIET". Try again later.
+
+What NOT to do in Phase 1
+
+Do NOT auto-trigger issue generation on universe advance. That's Phase 2.
+Do NOT file issues into rivalries' history. That's Phase 2.
+Do NOT add recentMagazineHeadlines to the booker context yet. That's Phase 2 — issues need to flow back into the AI's awareness only after we know the format works.
+Do NOT add a "subscribe" or "share" feature. Magazines are read-only.
+Do NOT generate AI images for photos. Use Roster photos exclusively. If a wrestler in the issue isn't in the Roster, fall back to the placeholder treatment.
+Do NOT add download/export to PDF or image. Mark as TODO for later.
+Do NOT use emojis anywhere — including in the cover, headlines, rumor text, dirt-sheet bullets. The Russo-era didn't have emojis.
+Do NOT try to be "edgy" with real-world references. The AI prompt explicitly forbids real-life scandals, deaths, divorces of real wrestlers. Stay in kayfabe.
+Do NOT add color outside the NEWS tab.
+Do NOT modify the existing Rivalries, Roster, or Creative Desk components beyond the tab nav placement.
+Do NOT add new heavy dependencies. The magazine treatment is doable with CSS + a few static SVG/PNG assets.
+
+Documentation update
+After implementation, update Universe-Mode/UNIVERSE_MODE_ASSISTANT.md:
+
+Add a new top-level tab section: Tab 0: NEWS (Newsstand) — describe the cover stack, the breaking strip, the IssueView and RumorView popups, the manual triggers
+Under API Endpoints, add POST /booker/issue and POST /booker/rumor
+Under Persistence (localStorage keys), add umc.issues and umc.rumors
+Under Visual System, add a new sub-section: Color exception — NEWS tab. State explicitly that the Russo-era palette (red, yellow, green outlines, blue, white, paper cream) is sanctioned inside the NEWS tab and only inside it. Outside, monochrome + brand-red rules still apply.
+Update the file map with the new files
+Add a new entry under Recent Changes dated today
+
+Update Universe-Mode/VISION.md:
+
+Under any "Color rules" section, add the Newsstand exception. Explain it's the deliberate counterweight to the calm chrome — the loud room in an otherwise quiet building. Same logic as the Result Screen being loud.
+
+Update Universe-Mode/replit.md Recent Changes with a one-line note.
+Add a temporary "Phase 1 of 2 — auto-trigger and rivalry filing arrive in Phase 2" note at the top of the Recent Changes section.
+Acceptance check before you tell me you're done
+
+ NEWS is the first tab in the nav, before CREATIVE DESK
+ Newsstand renders empty state when no issues exist
+ + NEW ISSUE button generates a complete weekly issue with cover + 4-6 features
+ + RUMOR SPILL button generates a single rumor card
+ Cover renders with masthead, issue strip, fake barcode, fake price, primary headline, 2-3 teasers, optional burst sticker, and the magazine-treated wrestler photo
+ Cover colors rotate based on AI's choice (RED / BLUE / YELLOW / BLACK)
+ Photo treatment system works — Roster photos look magazine-aged, not clean digital
+ Page imperfection layer applied (slight rotation, paper texture, drop shadow)
+ IssueView opens on cover tap, scrolls through all spreads, includes lead, features, dirtsheet, whatsnext
+ Pull quotes render in different display font in the lead/feature spreads
+ Dirt-sheet sidebar uses the typewriter mono treatment (JetBrains Mono)
+ WHAT'S NEXT spread pulls from upcomingEvents for the countdown panel
+ RumorView opens on rumor card tap with BREAKING strip, headline, body, fake source
+ Both popups close with X and ESC
+ Color rule: full Russo palette inside NEWS tab. Verify by spot-checking that no NEWS-tab colors leak into Roster, Rivalries, or Creative Desk
+ OpenAPI spec updated, codegen rerun cleanly, generated files regenerate without manual edits
+ Server prompts include kayfabe / no-emoji / Russo-tone instructions verbatim
+ No emojis anywhere in UI or generated content
+ All three docs updated as specified
+ pnpm run typecheck passes
+ pnpm run build succeeds
+ No new dependencies added beyond static SVG/PNG assets in public/news/
+
+Build it, run typecheck and build, and report back with:
+
+A summary of what changed
+Any decisions you made that I didn't specify (especially around the cover layout grid and which Russo-era palette hex values you chose if different from the ones I provided)
+A screenshot of a generated test issue's cover (if Replit can render and capture it) so I can verify the visual direction landed

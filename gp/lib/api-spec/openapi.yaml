@@ -1,0 +1,1145 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: booker
+    description: Universe Mode AI booker operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /booker/storyline:
+    post:
+      operationId: generateStoryline
+      tags: [booker]
+      summary: Generate a wrestling storyline
+      description: Returns a short, structured storyline scene
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookerRequest"
+      responses:
+        "200":
+          description: Generated storyline scene
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorylineScene"
+  /booker/show:
+    post:
+      operationId: bookShow
+      tags: [booker]
+      summary: Book a full show card
+      description: Returns a structured show card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookerRequest"
+      responses:
+        "200":
+          description: Booked show card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShowCard"
+  /booker/surprise:
+    post:
+      operationId: surpriseMe
+      tags: [booker]
+      summary: Generate a backstage incident or surprise moment
+      description: Returns a surprise scene
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookerRequest"
+      responses:
+        "200":
+          description: Surprise scene
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SurpriseScene"
+  /booker/promo:
+    post:
+      operationId: generatePromo
+      tags: [booker]
+      summary: Generate a cut-promo script for a chosen wrestler
+      description: Returns a structured promo script (intro / body / closer style beats) in the chosen tone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PromoRequest"
+      responses:
+        "200":
+          description: Generated promo script
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PromoScript"
+  /booker/chat:
+    post:
+      operationId: bookerChat
+      tags: [booker]
+      summary: Conversational chat with the AI booker
+      description: Sends a chat message history with full universe context and returns the assistant's reply
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookerChatRequest"
+      responses:
+        "200":
+          description: Assistant chat reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatReply"
+  /booker/summarize-chat:
+    post:
+      operationId: summarizeChat
+      tags: [booker]
+      summary: Compress archived chat messages into a short memory block
+      description: Takes a slice of older chat messages and returns a 100-150 token summary of decisions, facts, and ongoing context. Used to maintain continuity without resending full history.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatSummarizeRequest"
+      responses:
+        "200":
+          description: Compressed memory block
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatSummary"
+  /booker/chapter-suggest:
+    post:
+      operationId: suggestChapter
+      tags: [booker]
+      summary: Suggest a chapter title, description, and date range for a rivalry
+      description: Returns a single ChapterSuggestion derived from recent rivalry entries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RivalryAnalyzeRequest"
+      responses:
+        "200":
+          description: Chapter suggestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChapterSuggestion"
+  /booker/issue:
+    post:
+      operationId: generateIssue
+      tags: [booker]
+      summary: Generate a complete weekly magazine issue
+      description: Returns a Russo-era magazine cover plus 4-6 features (lead, mid-card features, dirtsheet, whatsnext)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueRequest"
+      responses:
+        "200":
+          description: Generated issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueGenerationResult"
+  /booker/rumor:
+    post:
+      operationId: generateRumor
+      tags: [booker]
+      summary: Generate a single dirt-sheet rumor
+      description: Returns one short rumor item attributed to anonymous sources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BookerRequest"
+      responses:
+        "200":
+          description: Generated rumor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RumorGenerationResult"
+  /booker/label-entry:
+    post:
+      operationId: labelEntry
+      tags: [booker]
+      summary: Suggest a chapter type label for a single rivalry entry
+      description: Given a rivalry's full context and one unlabeled entry, returns the most appropriate chapter type label from the fixed set.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LabelEntryRequest"
+      responses:
+        "200":
+          description: Suggested chapter type label
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LabelEntryResult"
+  /booker/blowoff-score:
+    post:
+      operationId: blowoffScore
+      tags: [booker]
+      summary: AI-powered blowoff readiness score for a rivalry
+      description: Returns a 0-100 confidence score and a short rationale explaining whether this rivalry is ready for its blowoff match.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RivalryAnalyzeRequest"
+      responses:
+        "200":
+          description: Blowoff readiness score and rationale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlowoffScoreResult"
+  /booker/memory-distill:
+    post:
+      operationId: distillMemories
+      tags: [booker]
+      summary: Distill 3-5 long-term memory beats from a rivalry's history
+      description: Returns a MemoryDistillation containing short, factual memory beats with universe dates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RivalryAnalyzeRequest"
+      responses:
+        "200":
+          description: Distilled memories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemoryDistillation"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    TokenUsage:
+      type: object
+      description: Token consumption reported by the model for a single API call.
+      properties:
+        promptTokens:
+          type: integer
+        completionTokens:
+          type: integer
+        totalTokens:
+          type: integer
+    Wrestler:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Stable unique id for this wrestler. Generated client-side (uuid for user-added, slug-based for seed roster). Survives renames.
+        name:
+          type: string
+        brand:
+          type: string
+          enum: [RAW, SMACKDOWN, NXT, FREE_AGENT]
+        alignment:
+          type: string
+          enum: [FACE, HEEL, TWEENER]
+        notes:
+          type: string
+        imageUrl:
+          type: string
+          description: Optional profile image (data URL or remote URL) for the wrestler
+        showId:
+          type: string
+          description: Optional id of the Show this wrestler is on
+        status:
+          type: string
+          enum: [ACTIVE, INJURED, INACTIVE, RETURNING]
+          description: Creative status of this wrestler in the universe
+        role:
+          type: string
+          enum: [MAIN_EVENTER, UPPER_MIDCARD, MIDCARD, LOWER_MIDCARD, ENHANCEMENT]
+          description: Creative role / card position for this wrestler
+        creativeNotes:
+          type: string
+          description: Short internal creative direction notes for this wrestler
+      required: [id, name]
+    Show:
+      type: object
+      description: A user-defined brand or show (e.g. Raw, SmackDown, NXT) the user runs in their Universe
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        vibe:
+          type: string
+          description: Short prose describing the show's identity / booking style for the AI
+        night:
+          type: string
+          description: Optional night of the week the show airs
+        imageUrl:
+          type: string
+          description: Optional logo or backdrop image (data URL or remote URL)
+      required: [id, name]
+    Championship:
+      type: object
+      description: A title belt tracked in the user's universe
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+          enum: [RAW, SMACKDOWN, NXT, FREE_AGENT]
+        division:
+          type: string
+          enum: [MENS, WOMENS, TAG]
+        currentChampionIds:
+          type: array
+          description: Wrestler IDs of current title holder(s)
+          items:
+            type: string
+        active:
+          type: boolean
+          description: Whether this championship is currently active in the universe
+        imageUrl:
+          type: string
+          description: Optional belt image (data URL or remote URL)
+        notes:
+          type: string
+      required: [id, name]
+    Stable:
+      type: object
+      description: A stable, faction, or tag team tracked in the user's universe
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        memberIds:
+          type: array
+          description: Wrestler IDs belonging to this stable / tag team
+          items:
+            type: string
+        leaderId:
+          type: string
+          description: Wrestler ID of the faction leader
+        managerId:
+          type: string
+          description: Wrestler ID of the manager (if any)
+        brand:
+          type: string
+          enum: [RAW, SMACKDOWN, NXT, FREE_AGENT]
+        alignment:
+          type: string
+          enum: [FACE, HEEL, TWEENER]
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, DISBANDED]
+        logoUrl:
+          type: string
+          description: Optional group logo image (data URL or remote URL)
+        notes:
+          type: string
+      required: [id, name]
+    ChairmanProfile:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Display name of the chairman / head booker
+        style:
+          type: string
+          description: Short prose describing this chairman's booking style
+      required: [name]
+    RivalrySummary:
+      type: object
+      description: Optional summary of an ongoing rivalry the user is tracking
+      properties:
+        title:
+          type: string
+        participants:
+          type: array
+          items:
+            type: string
+        recentBeats:
+          type: array
+          items:
+            type: string
+      required: [title, participants]
+    UniverseDate:
+      type: object
+      description: Current position in the user's universe timeline. Abstract — no real year, just month/week/day.
+      properties:
+        month:
+          type: integer
+          minimum: 1
+          maximum: 12
+        week:
+          type: integer
+          minimum: 1
+          maximum: 4
+        day:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0=Sunday through 6=Saturday
+      required: [month, week, day]
+    UpcomingEvent:
+      type: object
+      description: A premium event the user is building toward.
+      properties:
+        name:
+          type: string
+        month:
+          type: integer
+        week:
+          type: integer
+        day:
+          type: integer
+        weeksOut:
+          type: integer
+          description: How many weeks until this event from the current universe date
+        notes:
+          type: string
+      required: [name, month, week, day, weeksOut]
+    ActiveRivalryMemory:
+      type: object
+      description: Long-term memory beats from one currently active rivalry. The AI must remember and reference these on future requests.
+      properties:
+        rivalryTitle:
+          type: string
+          description: Display title or matchup line for the rivalry, e.g. "BLOODLINE VS CODY RHODES".
+        beats:
+          type: array
+          description: Up to 3 most recent memory beats from this rivalry, newest first.
+          maxItems: 3
+          items:
+            type: string
+      required: [rivalryTitle, beats]
+    MagazineHeadline:
+      type: object
+      description: A recent magazine cover headline. Lets the AI know what story the in-universe press already ran so it can build on or react to it.
+      properties:
+        issueNumber:
+          type: integer
+          minimum: 1
+        coverHeadline:
+          type: string
+          description: ALL CAPS cover headline of that issue.
+        universeDate:
+          $ref: "#/components/schemas/UniverseDate"
+      required: [issueNumber, coverHeadline]
+    BookerRequest:
+      type: object
+      properties:
+        roster:
+          type: array
+          description: Structured roster the user is tracking
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        shows:
+          type: array
+          description: Brands / shows the user runs (definitions for AI context)
+          items:
+            $ref: "#/components/schemas/Show"
+        chairman:
+          $ref: "#/components/schemas/ChairmanProfile"
+        ongoingRivalries:
+          type: array
+          description: Optional ongoing rivalries the AI should be aware of
+          items:
+            $ref: "#/components/schemas/RivalrySummary"
+        recentEvents:
+          type: array
+          items:
+            type: string
+          description: Free-text logs of what actually happened on TV. Treat as canon.
+          maxItems: 5
+        currentDate:
+          $ref: "#/components/schemas/UniverseDate"
+        upcomingEvents:
+          type: array
+          description: Premium events the user is building toward. Use these to pace storylines.
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/UpcomingEvent"
+        activeRivalryMemories:
+          type: array
+          description: Up to 5 active rivalries with their most recent memory beats. Long-term, per-rivalry continuity for the AI.
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ActiveRivalryMemory"
+        recentMagazineHeadlines:
+          type: array
+          description: Up to 3 most recent in-universe magazine cover headlines. Lets the AI know what stories the press already ran.
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/MagazineHeadline"
+        championships:
+          type: array
+          description: Title belts the user is tracking in their universe
+          items:
+            $ref: "#/components/schemas/Championship"
+        stables:
+          type: array
+          description: Stables, factions, and tag teams the user is tracking
+          items:
+            $ref: "#/components/schemas/Stable"
+      required: []
+    PromoTone:
+      type: string
+      enum: [HEEL, BABYFACE, COCKY, WOUNDED]
+      description: The emotional register the wrestler should cut the promo in.
+    PromoRequest:
+      type: object
+      description: Same context as BookerRequest, plus the chosen wrestler and tone.
+      properties:
+        roster:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        shows:
+          type: array
+          items:
+            $ref: "#/components/schemas/Show"
+        chairman:
+          $ref: "#/components/schemas/ChairmanProfile"
+        ongoingRivalries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RivalrySummary"
+        recentEvents:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+        currentDate:
+          $ref: "#/components/schemas/UniverseDate"
+        upcomingEvents:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/UpcomingEvent"
+        activeRivalryMemories:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ActiveRivalryMemory"
+        recentMagazineHeadlines:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/MagazineHeadline"
+        championships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Championship"
+        stables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stable"
+        wrestlerName:
+          type: string
+          description: The wrestler cutting the promo.
+        tone:
+          $ref: "#/components/schemas/PromoTone"
+      required: [wrestlerName, tone]
+    SuggestedRivalryHint:
+      type: object
+      description: AI's guess at which rivalry this generation belongs to. Used to pre-select an existing rivalry in the file-to-rivalry dialog. The user always confirms before any filing happens.
+      properties:
+        matchupGuess:
+          type: string
+          description: AI's best guess at the matchup, e.g. "ROMAN REIGNS VS CODY RHODES" or "BLOODLINE VS CODY RHODES".
+        confidence:
+          type: string
+          enum: [high, medium, low]
+      required: [matchupGuess]
+    PromoScript:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [promo]
+        title:
+          type: string
+        stamp:
+          type: string
+          description: Short stamp text such as MIC DROPPED
+        wrestlerName:
+          type: string
+        tone:
+          $ref: "#/components/schemas/PromoTone"
+        headline:
+          type: string
+          description: One-line ALL CAPS news ticker headline summarizing the promo
+        beats:
+          type: array
+          description: Sections of the promo. Each beat text is a quote spoken by the wrestler.
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+                description: Section label such as OPENING, SETUP, GUT PUNCH, CLOSER
+              text:
+                type: string
+                description: The line(s) the wrestler says in this section, in their voice.
+            required: [label, text]
+        suggestedRivalryHint:
+          $ref: "#/components/schemas/SuggestedRivalryHint"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [kind, title, stamp, wrestlerName, tone, headline, beats]
+    StorylineScene:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [storyline]
+        title:
+          type: string
+        stamp:
+          type: string
+          description: Short stamp text such as ANGLE SET
+        feud:
+          type: string
+          description: One-line feud or angle title
+        participants:
+          type: array
+          items:
+            type: string
+        beats:
+          type: array
+          description: Short punchy story beats
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              text:
+                type: string
+            required: [label, text]
+        headline:
+          type: string
+          description: One-line news ticker headline summarizing this storyline
+        suggestedRivalryHint:
+          $ref: "#/components/schemas/SuggestedRivalryHint"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [kind, title, stamp, feud, participants, beats, headline]
+    ShowMatch:
+      type: object
+      properties:
+        slot:
+          type: string
+          description: Match slot label such as OPENER or MAIN EVENT
+        match:
+          type: string
+          description: Names of competitors
+        result:
+          type: string
+        twist:
+          type: string
+      required: [slot, match, result, twist]
+    ShowCard:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [show]
+        title:
+          type: string
+        stamp:
+          type: string
+        showName:
+          type: string
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ShowMatch"
+        headline:
+          type: string
+          description: One-line news ticker headline summarizing this show
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [kind, title, stamp, showName, matches, headline]
+    BookerChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required: [role, content]
+    BookerChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookerChatMessage"
+        sessionSummary:
+          type: string
+          description: Compressed summary of older messages that have been archived. Injected as context before recent messages to maintain continuity without resending full history.
+        roster:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        shows:
+          type: array
+          items:
+            $ref: "#/components/schemas/Show"
+        chairman:
+          $ref: "#/components/schemas/ChairmanProfile"
+        ongoingRivalries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RivalrySummary"
+        recentEvents:
+          type: array
+          items:
+            type: string
+          description: Free-text logs of what actually happened on TV. Treat as canon.
+          maxItems: 5
+        currentDate:
+          $ref: "#/components/schemas/UniverseDate"
+        upcomingEvents:
+          type: array
+          description: Premium events the user is building toward. Use these to pace storylines.
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/UpcomingEvent"
+        activeRivalryMemories:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ActiveRivalryMemory"
+        recentMagazineHeadlines:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/MagazineHeadline"
+        championships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Championship"
+        stables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stable"
+      required: [messages]
+    ChatSummarizeRequest:
+      type: object
+      description: A slice of older chat messages to be compressed into a short memory block.
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookerChatMessage"
+      required: [messages]
+    ChatSummary:
+      type: object
+      description: A short compressed memory of archived chat messages.
+      properties:
+        summary:
+          type: string
+          description: 100-150 token plain-text summary of the archived messages. Decisions, facts, and ongoing context only — no small talk.
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [summary]
+    ChatReply:
+      type: object
+      properties:
+        message:
+          type: string
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [message]
+    SurpriseScene:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [surprise]
+        title:
+          type: string
+        stamp:
+          type: string
+        headline:
+          type: string
+        beats:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              text:
+                type: string
+            required: [label, text]
+        suggestedRivalryHint:
+          $ref: "#/components/schemas/SuggestedRivalryHint"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [kind, title, stamp, headline, beats]
+    RivalryAnalyzeRequest:
+      type: object
+      description: Booker context plus a focused snapshot of one rivalry. Used by chapter-suggest and memory-distill.
+      properties:
+        roster:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        shows:
+          type: array
+          items:
+            $ref: "#/components/schemas/Show"
+        chairman:
+          $ref: "#/components/schemas/ChairmanProfile"
+        ongoingRivalries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RivalrySummary"
+        recentEvents:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+        currentDate:
+          $ref: "#/components/schemas/UniverseDate"
+        upcomingEvents:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/UpcomingEvent"
+        activeRivalryMemories:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ActiveRivalryMemory"
+        recentMagazineHeadlines:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/MagazineHeadline"
+        championships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Championship"
+        stables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stable"
+        rivalryContext:
+          $ref: "#/components/schemas/RivalryAnalyzeContext"
+      required: [rivalryContext]
+    RivalryAnalyzeContext:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The rivalry title or matchup line.
+        sides:
+          type: array
+          description: Each side rendered as a string, e.g. "BLOODLINE" or "CODY RHODES".
+          items:
+            type: string
+        recentEntries:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/RivalryAnalyzeEntry"
+      required: [title, sides, recentEntries]
+    RivalryAnalyzeEntry:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [storyline, show, surprise, promo, log, magazine]
+        summary:
+          type: string
+          description: One-line summary of the entry.
+        universeDate:
+          type: string
+          description: Formatted universe date string for the entry.
+      required: [kind, summary]
+    ChapterSuggestion:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        suggestedStartDate:
+          $ref: "#/components/schemas/UniverseDate"
+        suggestedEndDate:
+          $ref: "#/components/schemas/UniverseDate"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [title, description, suggestedStartDate]
+    MemoryDistillation:
+      type: object
+      properties:
+        memories:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/MemoryDistillationItem"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [memories]
+    MemoryDistillationItem:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 200
+        date:
+          $ref: "#/components/schemas/UniverseDate"
+      required: [text, date]
+    IssueRequest:
+      type: object
+      description: Standard booker context plus the sequential issue number.
+      properties:
+        roster:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        shows:
+          type: array
+          items:
+            $ref: "#/components/schemas/Show"
+        chairman:
+          $ref: "#/components/schemas/ChairmanProfile"
+        ongoingRivalries:
+          type: array
+          items:
+            $ref: "#/components/schemas/RivalrySummary"
+        recentEvents:
+          type: array
+          items:
+            type: string
+          maxItems: 5
+        currentDate:
+          $ref: "#/components/schemas/UniverseDate"
+        upcomingEvents:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/UpcomingEvent"
+        activeRivalryMemories:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/ActiveRivalryMemory"
+        recentMagazineHeadlines:
+          type: array
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/MagazineHeadline"
+        championships:
+          type: array
+          items:
+            $ref: "#/components/schemas/Championship"
+        stables:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stable"
+        issueNumber:
+          type: integer
+          minimum: 1
+          description: Sequential issue number, used in cover styling and content references.
+      required: [issueNumber]
+    IssueCoverTeaserData:
+      type: object
+      properties:
+        headline:
+          type: string
+        dek:
+          type: string
+        featureIndex:
+          type: integer
+          description: Index into the features array this teaser maps to.
+      required: [headline, dek, featureIndex]
+    IssueCoverData:
+      type: object
+      properties:
+        masthead:
+          type: string
+          description: Magazine name. The AI should vary this per issue — sometimes "GORILLA POSITION", sometimes "RAW MAG", sometimes "WRESTLE WEEKLY".
+        primaryHeadline:
+          type: string
+          description: Cover headline, ALL CAPS, max 6 words. Bold, dramatic, Russo-tone.
+        primarySubhead:
+          type: string
+        featuredWrestlerName:
+          type: string
+          description: Name of the wrestler whose photo will be on the cover. Must be a name in the roster.
+        teasers:
+          type: array
+          minItems: 2
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/IssueCoverTeaserData"
+        burstSticker:
+          type: string
+          description: Short punchy text for the yellow burst sticker on the cover.
+        coverColor:
+          type: string
+          enum: [RED, BLUE, YELLOW, BLACK]
+        suggestedRivalryHint:
+          $ref: "#/components/schemas/SuggestedRivalryHint"
+      required: [masthead, primaryHeadline, teasers, coverColor]
+    IssueFeatureData:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum: [lead, feature, dirtsheet, whatsnext]
+        headline:
+          type: string
+        dek:
+          type: string
+        byline:
+          type: string
+          description: Fake reporter name or "Anonymous Sources".
+        body:
+          type: string
+          description: 150-400 words of magazine-style prose. Russo-era voice — punchy, edgy, dramatic, slightly tabloid.
+        pullQuote:
+          type: string
+          description: One quotable line from the article, suitable for the pull quote spread treatment.
+        featuredWrestlerName:
+          type: string
+          description: Wrestler name for the inset photo on this feature's spread.
+      required: [kind, headline, body]
+    IssueGenerationResult:
+      type: object
+      properties:
+        cover:
+          $ref: "#/components/schemas/IssueCoverData"
+        features:
+          type: array
+          minItems: 4
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/IssueFeatureData"
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [cover, features]
+    RumorGenerationResult:
+      type: object
+      properties:
+        headline:
+          type: string
+          description: Short punchy rumor headline, ALL CAPS, max 8 words.
+        body:
+          type: string
+          description: 1-3 paragraphs of dirt-sheet rumor content.
+        fakeSource:
+          type: string
+          description: Attribution like "Anonymous Backstage Source" or "Locker Room Insider".
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [headline, body, fakeSource]
+    LabelEntryRequest:
+      type: object
+      description: Rivalry context plus a single entry to label with a chapter type.
+      properties:
+        roster:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wrestler"
+        rivalryContext:
+          $ref: "#/components/schemas/RivalryAnalyzeContext"
+        entryKind:
+          type: string
+          enum: [storyline, show, surprise, promo, log, magazine]
+          description: The kind of the entry being labeled.
+        entrySummary:
+          type: string
+          description: One-line summary of the entry being labeled.
+        entryDate:
+          type: string
+          description: Formatted universe date of the entry, if known.
+        existingLabels:
+          type: array
+          description: Chapter types already assigned to earlier entries in this rivalry, in chronological order. Helps the AI pick the right progression.
+          items:
+            type: string
+      required: [rivalryContext, entryKind, entrySummary]
+    LabelEntryResult:
+      type: object
+      properties:
+        chapterType:
+          type: string
+          enum: [BEGINNING, ESCALATION, "TURNING POINT", FALLOUT, BLOWOFF]
+          description: The suggested chapter type for this entry.
+        rationale:
+          type: string
+          description: One sentence explaining why this chapter type fits.
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [chapterType, rationale]
+    BlowoffScoreResult:
+      type: object
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: 0-100 blowoff readiness confidence. 0 means the feud just started; 100 means it's overdue.
+        rationale:
+          type: string
+          description: 1-2 sentences explaining the score. Plain, direct, kayfabe voice.
+        _usage:
+          $ref: "#/components/schemas/TokenUsage"
+      required: [score, rationale]

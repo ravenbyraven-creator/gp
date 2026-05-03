@@ -1,0 +1,132 @@
+I want to redesign and polish the News tab UI.
+
+The current News tab works, but I do not like the “Print Weekly Issue” and “Spill A Rumor” buttons. They look outdated, cheap, and too generic. I want the News section to feel more premium, more in-universe, and more connected to the rest of my Gorilla Position app.
+
+Before changing anything:
+- Review the current News tab design.
+- Review the rest of the app’s current visual style, especially Gorilla Position dashboard, Roster 2.0, Rivalries, Creative Desk, and the polished edit screens.
+- Keep the existing functionality working.
+- Do not break saved issues, rumors, magazines, or history.
+
+Goal:
+Turn the News tab into a kayfabe media hub / dirt sheet desk for the user’s WWE Universe.
+
+Concept:
+The News tab should feel like:
+- a wrestling magazine newsroom
+- a backstage rumor desk
+- a WWE.com / early 2000s wrestling media page
+- a place where the user’s universe becomes headlines, rumors, covers, and media buzz
+
+Main UI Problem To Fix:
+The current “Print Weekly Issue” and “Spill A Rumor” buttons should not look like plain generic buttons.
+
+Replace or redesign them as premium action cards or newsroom controls.
+
+Suggested new action names:
+- Instead of “Print Weekly Issue”:
+  - Publish Weekly Issue
+  - Send To Print
+  - Run The Front Page
+  - Drop This Week’s Issue
+
+- Instead of “Spill A Rumor”:
+  - Leak A Rumor
+  - Feed The Dirt Sheet
+  - Break A Backstage Rumor
+  - Publish A Backstage Leak
+
+Design Requirements:
+- Make the top of the News tab feel like a newsroom command desk.
+- Replace the two plain buttons with two large polished action panels:
+  1. Weekly Magazine / Front Page
+  2. Backstage Rumor / Dirt Sheet Leak
+- Each action panel should have:
+  - strong title
+  - short kayfabe description
+  - visual icon or badge if existing icon system supports it
+  - premium hover state
+  - loading state that feels in-universe
+  - clear failure state using the app’s existing API error helper
+- The action panels should match the dark premium Gorilla Position aesthetic.
+- Use the existing red/gold/dark theme, borders, gradients, shadows, and typography.
+- Avoid default-looking form/buttons.
+- Avoid making it look like a plain admin dashboard.
+
+Suggested Layout:
+Top section:
+- “Newsroom Desk” or “Press Room”
+- short subtitle: “Turn your canon into headlines, rumors, and weekly media buzz.”
+- two featured action cards:
+  - “Run The Front Page”
+  - “Leak To The Dirt Sheet”
+
+Main content sections:
+1. Latest Issue
+   - Big featured magazine cover/card
+   - issue number
+   - cover headline
+   - featured wrestler
+   - date/week if available
+
+2. Backstage Wire
+   - rumor cards
+   - short punchy headlines
+   - source labels like “Locker Room Source” or “Backstage Insider”
+
+3. Archive
+   - previous issues and rumors
+   - clean card grid, not boring list
+
+4. Connected Stories
+   - show which rivalries, champions, stables, or recent canon moments influenced the latest news
+
+Wiring Requirements:
+- Keep using existing news/issue/rumor storage.
+- Do not create disconnected duplicate data.
+- News should continue to pull from:
+  - roster
+  - champions
+  - stables
+  - rivalries
+  - history/canon moments
+  - recent magazine headlines
+  - universe date
+- If a champion or stable is involved in a major story, the generated news should be able to reference it.
+- If there is not enough canon yet, show a helpful empty state telling the user to save canon moments, rivalries, or title changes first.
+
+AI Behavior:
+- AI should write news based on saved canon only.
+- AI should not invent random major events.
+- Rumors can speculate, but they should still be connected to the user’s universe.
+- News should understand champions, stables, rivalries, and recent moments.
+- Do not send imageUrl/logoUrl/base64 image data to AI context. Strip images from AI requests and only send useful text data like names, IDs, champions, members, brands, notes, and story context.
+
+Visual Feel:
+- Make the page look like a premium wrestling media hub.
+- Use magazine/newspaper textures only if they match the app and do not make it look cluttered.
+- The page should feel gritty, glossy, and kayfabe.
+- It should not look like two random AI buttons sitting above a list.
+
+UX:
+- Keep the page easy to understand.
+- User should immediately know:
+  - generate a weekly issue here
+  - generate a rumor here
+  - read past issues here
+  - see how news connects to their universe here
+- Make loading states exciting, like:
+  - “Sending to print...”
+  - “Calling backstage sources...”
+  - “Presses are warming up...”
+- Keep errors clear and helpful.
+
+Verification:
+- Confirm Weekly Issue generation still works.
+- Confirm Rumor generation still works.
+- Confirm old issues still display.
+- Confirm old rumors still display.
+- Confirm empty states look premium.
+- Confirm mobile layout works.
+- Confirm AI context includes championships and stables but excludes imageUrl/logoUrl/base64 image data.
+- Run typecheck and tests if available.

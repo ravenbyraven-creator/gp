@@ -1,0 +1,76 @@
+What you're doing vs what the AI sees
+Step 1: You hit "Save to Rivalry" on a chat reply
+It works. Look at gp/artifacts/universe-mode/src/components/RivalryDialogs.tsx line 865:
+
+
+RivalryDialogs.tsx
+Lines 865-886
+  const fileLogTo = (rivalryId: string) => {
+    const trimmed = logText.trim();
+    if (!trimmed) {
+      toast.error("Write a log entry first.");
+      return;
+    }
+    const entry = buildEntry();
+    setHistory((prev) => [entry, ...prev]);
+    setRivalries((prev) =>
+      prev.map((r) => {
+        if (r.id !== rivalryId) return r;
+        if (r.historyEntryIds.includes(entry.id)) return r;
+        return {
+          ...r,
+          historyEntryIds: [...r.historyEntryIds, entry.id],
+          lastActivityDate: universeDate,
+        };
+      }),
+    );
+    onOpenChange(false);
+    toast.success("Saved to rivalry history");
+  };
+That entry gets saved with kind: "log" (line 856-863) and the rivalry's historyEntryIds array gets the new id added. Visually, you go look at the rivalry and the log is there. Looks like it worked.
+
+Step 2: You ask the AI "what should happen next in Cody vs Punk?"
+Here's where it falls apart. Look at what the chat sends to the AI in gp/artifacts/universe-mode/src/lib/storage.ts:
+
+
+storage.ts
+Lines 361-393
+  const rivalryHistory = history.filter(
+    h => h.kind === "storyline" || h.kind === "show" || h.kind === "surprise"
+  );
+  const deriveFromHistory = () => {
+    return rivalryHistory.slice(0, 5).map(h => {
+      if (h.kind === "storyline") {
+        return {
+          title: h.data.feud,
+          participants: h.data.participants,
+          recentBeats: h.data.beats.map(b => b.text)
+        };
+      }
+      ...
+  const recentEvents = history
+    .filter((h): h is Extract<RivalryEntry, { kind: "log" }> => h.kind === "log")
+    .slice(0, 5)
+    .map(h => h.text);
+Read those filters. Two killers:
+
+kind: "log" is filtered OUT of rivalryHistory. Your filed-to-rivalry chat saves are literally excluded from the "ongoing rivalries" the AI sees.
+The "recentEvents" bucket that does include logs is a flat list of the last 5 log entries across the entire universe — with no rivalry tag, no participant info, no "this belongs to Cody vs Punk." Just text.
+And look at activeRivalryMemories (line 408-431) — it pulls from useMemories(), a completely separate store that only gets populated by the AI's "Distill Memories" button. Your filed chat saves never end up in useMemories(). So when the AI checks "what do I know about this rivalry?" it's checking the wrong drawer.
+
+Net result
+You chat about Cody vs Punk
+AI gives a great beat
+You hit Save to Rivalry
+Entry saved as kind=log, attached to rivalry
+RivalryDetail UI shows it. Looks good.
+Next question: 'what next for Cody vs Punk?'
+buildBookerContext runs
+Filters logs OUT of rivalryHistory
+Pulls last 5 logs as flat 'recentEvents' with no rivalry context
+activeRivalryMemories reads useMemories which YOUR save never touched
+AI receives: 5 most recent storyline/show entries (none of them yours)
+AI gives a beat that ignores everything you just filed
+So you file something, the app says "Saved to rivalry history," and then the AI immediately forgets it. The rivalry-link is a decoration, not a signal.
+
+That's exactly why I called Quick Book "rivalry-blind" — it's not just Quick Book, it's the whole AI context layer. The data structure to wire this up correctly already exists (Rivalry.historyEntryIds, useMemories, useChapters are all per-rivalry), but buildBookerContext ignores it.

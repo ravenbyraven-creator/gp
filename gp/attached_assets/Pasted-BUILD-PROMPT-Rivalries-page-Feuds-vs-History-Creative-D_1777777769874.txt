@@ -1,0 +1,141 @@
+BUILD PROMPT — Rivalries page: Feuds vs History + Creative Desk wiring + UI clarity
+You are working in the Gorilla Position monorepo. Implement everything below in one PR. Do NOT use emojis in code, UI copy, or comments.
+
+Problem statement (user-confusing today)
+In gp/artifacts/universe-mode/src/components/Rivalries.tsx:
+
+Active Feuds / Concluded show Rivalry records. Each card only counts historyEntryIds linked to that feud.
+All Entries is a collapsible drawer at the bottom titled "All Entries" that lists the entire useHistory() array with type filters (STORYLINES, SHOWS, etc.). This is the same source of truth as Creative Desk Quick Book: every Storyline/Show/Surprise/Promo/Night Note goes into umc.history first. Entries are only "in a feud" after the user files them to a rivalry.
+Users think "All Entries" is a second random list. They do not understand it is Creative Desk output until something is filed to a feud.
+
+Fix: rename, restructure, and wire so the mental model is obvious, and add one-tap flows between History and Creative Desk.
+
+Mental model (copy this into UI)
+Use this exact hierarchy in the Rivalries screen:
+
+Feuds tab: "Stories you are tracking" — each row is a rivalry with linked canon entries.
+History tab: "Everything Creative Desk saved" — chronological stream of all RivalryEntry items. Subtitle: "Storylines, shows, surprises, promos, night notes, and magazines. File any row to a feud so the AI and feud cards stay aligned."
+Never bury History in a collapsed accordion at the bottom. It competes with Feuds for attention.
+
+Part 1 — App-level navigation prop
+In gp/artifacts/universe-mode/src/App.tsx, Dashboard receives onNavigate={setActiveTab} but Rivalries does not.
+
+Pass onNavigate={setActiveTab} into <Rivalries onNavigate={setActiveTab} /> (or equivalent). Update Rivalries props to accept optional onNavigate?: (tab: AppTab) => void.
+
+Use it for buttons like "Open Creative Desk" from History rows.
+
+Part 2 — Replace accordion with top-level tabs
+In Rivalries.tsx:
+
+Remove the historyOpen collapsible AnimatePresence pattern for "All Entries".
+Add explicit page tabs (same visual weight as rest of app — use Button variant tabs or pill row):
+[ FEUDS ]  [ HISTORY ]
+Default tab: FEUDS when rivalries.length > 0, else HISTORY when history.length > 0, else show empty state.
+
+FEUDS tab content: existing Active + Concluded sections unchanged in logic.
+
+HISTORY tab content: move the entire FeedView here as a always-visible full-width section (not collapsed). Rename UI label from "All Entries" to "Universe history" or "Creative history" — pick one term and use it consistently in the tab label and h2 under the tab.
+
+Part 3 — FeedView upgrades (clarity + filing status)
+Refactor FeedView in Rivalries.tsx (or extract to RivalriesHistoryPanel.tsx if the file gets too long).
+
+3a. Show filing status on every row
+Inside FeedView, read useRivalries(). For each history entry id, compute:
+
+const linkedRivalryIds = rivalries.filter(r => r.historyEntryIds.includes(entry.id)).map(r => r.id);
+const linkedTitles = rivalries.filter(r => r.historyEntryIds.includes(entry.id)).map(r => rivalryDisplayTitle(r, roster));
+On every FeedCard, add a Filing strip under the title row:
+
+If linkedTitles.length > 0: pill text Filed to: {comma-separated titles} (truncate with ellipsis, full list on expand).
+If linkedTitles.length === 0: muted text Not filed to any feud with primary button File to feud (small).
+3b. "File to feud" from History
+Reuse existing filing UX:
+
+Import and use the same patterns as ChatToRivalryDialog OR extract a reusable FileEntryToRivalryDialog in RivalryDialogs.tsx that accepts a RivalryEntry and either appends its id to existing rivalry historyEntryIds OR creates a new rivalry via CreateRivalryDialog with participants inferred from entryParticipantNames(entry) from gp/artifacts/universe-mode/src/lib/rivalry.ts.
+
+For kind: "log", filing behavior should match ChatToRivalryDialog: add entry id to chosen rivalry's historyEntryIds (do not duplicate).
+
+For structured kinds (storyline, show, surprise, promo), same: push entry id onto historyEntryIds.
+
+For kind: "magazine", either disable "File to feud" with tooltip "Magazine covers are filed from the News tab" OR allow filing as a reference entry — pick disable for v1 to avoid weird AI context.
+
+3c. Quick actions row on each FeedCard
+Add a horizontal action row (icons + labels for accessibility):
+
+View — opens the same visual as Creative Desk result: reuse ResultScreen from ResultScreen.tsx inside a Dialog when entry is storyline/show/surprise/promo. For log, expand inline. For magazine, keep existing IssueView behavior.
+Creative Desk — calls onNavigate?.("desk") and stores sessionStorage.setItem("creativeDesk.focusEntryId", entry.id) so Creative Desk can react (see Part 4).
+File to feud — opens dialog from 3b.
+Delete — keep existing confirm + delete.
+3d. Search + richer filters
+Add search input above the type chips: filters by headline text, feud title, participant names (for storyline/show), and log body.
+
+Keep existing type filter chips but rename labels for humans:
+
+ALL, STORYLINE, SHOW, SURPRISE, PROMO, NIGHT NOTE, MAGAZINE
+(Map internally to existing LegacyFilter values.)
+
+Show counts per chip: STORYLINE (12).
+
+3e. Sort
+Default: newest first by createdAt. Optional dropdown: "Newest" / "Oldest".
+
+Part 4 — Creative Desk: focus strip for History wiring
+In CreativeDesk.tsx:
+
+On mount, read sessionStorage.getItem("creativeDesk.focusEntryId"). If set, clear the key, scroll the Creative Desk root into view, and open ResultScreen for that entry if kind is not log (for log, toast "Night note is in Rivalries under History — open Log entry there" OR open a small read-only dialog with the log text — pick read-only dialog for consistency).
+
+Add a Recent saves horizontal strip directly under the UniverseClock and above the Quick Book toolbar:
+
+Shows last 8 history entries (same array as desk uses).
+Each chip: kind icon + short label (Storyline, Show card, Night note, Promo, etc.) + relative time.
+Click: same behavior as View in FeedCard (ResultScreen dialog for structured kinds, dialog for log).
+This makes Creative Desk and Rivalries History feel like two views of one tape.
+
+Part 5 — Visual polish (Feuds tab cards)
+Keep existing RivalryCard logic but improve scanability:
+
+Add a subtitle under the feud title, always visible: Canon: N entries filed using entries.length (already passed).
+
+If entries.length === 0 but feud is ACTIVE, show amber inline hint: No canon filed yet — use History or Creative Desk to link beats.
+
+Ensure contrast and spacing match Dashboard panels (use same border/radius tokens: rounded-xl border bg-card).
+
+Part 6 — Empty states
+Feuds tab empty, History has items: show Feuds empty state with CTA: "Create a feud" + secondary "Go to History to file Creative Desk saves".
+History empty: single empty state pointing to Creative Desk: primary button navigates onNavigate("desk").
+Part 7 — Manual test checklist
+Creative Desk: run Storyline. Go Rivalries > History tab. New row appears at top. Badge shows "Not filed to any feud". File to feud. Feuds card for that feud shows increased entry count.
+Feuds tab: open rivalry detail. History inside detail still works. No duplicate entries in umc.history.
+History row View opens ResultScreen for show/surprise/storyline/promo.
+Creative Desk Recent strip shows the same entries as History.
+From History, Creative Desk button switches tab and focuses the entry via sessionStorage.
+Search filters by participant name inside a storyline entry.
+Magazine rows: no File to feud (disabled + explanation).
+Delete entry removes from history and removes its id from any rivalry.historyEntryIds (CRITICAL — today delete might orphan ids). Implement cleanup in handleDelete in FeedView:
+setRivalries(prev => prev.map(r => ({
+  ...r,
+  historyEntryIds: r.historyEntryIds.filter(hid => hid !== id),
+})));
+No emojis anywhere in this PR.
+Files at a glance
+EDIT:
+
+gp/artifacts/universe-mode/src/App.tsx — pass onNavigate into Rivalries
+gp/artifacts/universe-mode/src/components/Rivalries.tsx — tabs, History panel, filing badges, ResultScreen dialog, delete cleanup on rivalries
+gp/artifacts/universe-mode/src/components/CreativeDesk.tsx — Recent saves strip, sessionStorage focus
+Possibly gp/artifacts/universe-mode/src/components/RivalryDialogs.tsx — extract FileEntryToRivalryDialog if cleaner
+NOT TOUCHED:
+
+API server, token meter, inbox work, storage keys except no new keys required
+buildBookerContext (separate PR)
+UX copy (exact strings — no emojis)
+Tab labels: FEUDS and HISTORY
+History section title: Creative history
+History subtitle: Everything saved from Creative Desk. File rows to feuds so stories stay organized.
+Filed pill: Filed to: {names}
+Unfiled hint: Not filed to any feud
+Button: File to feud
+Button: View
+Button: Creative Desk
+Magazine disabled tooltip: Magazine issues live in News. File feuds from story beats instead.
+End of prompt.

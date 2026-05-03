@@ -1,0 +1,68 @@
+I want championship belt images to visually follow champions throughout the app.
+
+Feature goal:
+When a wrestler is assigned as a current champion, their championship belt PNG/image should overlay their wrestler photo anywhere that wrestler appears in the app.
+
+Example:
+If Cody Rhodes is WWE Champion, then Cody’s wrestler photo should show the WWE Championship belt image diagonally over the bottom-right corner of his photo.
+
+Scope:
+Apply champion image overlays across the app wherever wrestler profile images/cards/avatars appear, including:
+- Roster tab
+- Rivalries tab
+- Rivalry detail pages
+- Wrestler Inbox
+- Chat/Creative Desk wrestler references if wrestler photos are shown
+- News/magazine cards if wrestler photos are shown
+- Any shared wrestler avatar/profile card component
+
+Behavior:
+- If a wrestler holds one championship, show that championship image as a diagonal overlay at the bottom-right of their photo.
+- If a wrestler holds multiple championships, show up to 2 small stacked/offset belt overlays, or use the highest-priority title if the UI is too small.
+- If a championship has no image, do not show a broken image. Either show no overlay or a small subtle title badge.
+- If the wrestler is not a champion, show their normal photo with no overlay.
+- If a championship is inactive, do not show its image as an active champion overlay.
+- If a title has multiple champions, like tag champions, show the belt overlay on each champion’s wrestler photo.
+- If the champion changes, the overlay should update everywhere automatically.
+
+Data/wiring requirements:
+- Use existing championship data from Roster 2.0.
+- Do not duplicate champion state in wrestler records.
+- Determine champion status from the championship holder/champion IDs.
+- Use wrestler IDs, not just names, when matching champions to wrestler photos.
+- Make this part of the shared roster/championship helpers so the whole app stays wired together.
+
+Implementation:
+- Search for existing wrestler avatar/photo/card components.
+- Create a reusable component or helper, for example:
+  - ChampionPhoto
+  - WrestlerAvatarWithTitles
+  - ChampionshipOverlay
+- Replace repeated plain wrestler image usage with the shared champion-aware component where appropriate.
+- Keep the existing wrestler image styling, but add the belt overlay layer.
+- The overlay should be visually polished and match the app aesthetic.
+
+Visual design:
+- Belt image should sit diagonally at the bottom-right of the wrestler photo.
+- Use CSS transform/rotate to make it feel like the belt is laid across the portrait.
+- Add a subtle shadow/glow so it reads clearly.
+- Keep it tasteful, not too large or cluttered.
+- On small avatars, show a simplified smaller overlay.
+- On large roster cards, the belt can be more visible.
+- Make sure the overlay does not cover the wrestler’s face too much.
+- Make sure it works with circular avatars, square cards, and poster-style photos if the app uses different shapes.
+
+Accessibility:
+- Add accessible title/alt text like:
+  - “Cody Rhodes, WWE Champion”
+  - “Rhea Ripley, Women’s World Champion”
+- If multiple titles, include title names in the accessible label.
+
+Verification:
+- Assign a championship to a wrestler and confirm the belt appears on their photo in the Roster tab.
+- Confirm the same champion overlay appears when that wrestler appears in Rivalries.
+- Confirm it appears in Wrestler Inbox if their photo is shown there.
+- Confirm tag champions both show the belt overlay.
+- Confirm changing/removing the champion updates/removes the overlay everywhere.
+- Confirm no broken image appears when a championship has no belt photo.
+- Run typecheck and tests if available.

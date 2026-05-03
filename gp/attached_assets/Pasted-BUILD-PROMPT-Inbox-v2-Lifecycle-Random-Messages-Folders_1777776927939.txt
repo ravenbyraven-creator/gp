@@ -1,0 +1,482 @@
+BUILD PROMPT — Inbox v2 (Lifecycle + Random Messages + Folders + Reply as GM)
+You are working in the Gorilla Position monorepo. Implement everything below in one PR. Do NOT use emojis anywhere in code, comments, UI strings, or message templates. Match the existing code style. This entire feature must use ZERO OpenAI tokens — all message generation is local templated.
+
+Part 0 — Architecture overview
+Today the inbox is 100% derived from history entries via buildMessages in gp/artifacts/universe-mode/src/components/WrestlerInbox.tsx. Read state lives in umc.inboxReadIds. Nothing else exists.
+
+This PR adds:
+
+A second message source: a local scheduler that generates random talent + non-talent messages on each Advance, stored in umc.inboxGenerated. Zero tokens.
+Lifecycle: archive, delete, star, mark unread, bulk actions, search.
+Folders/filters by sender type and state.
+Reply as GM: pick a template response, it becomes a Night Note in history and triggers an auto-reply from the wrestler.
+The combined inbox view = (derived from history) PLUS (umc.inboxGenerated) MINUS (umc.inboxArchivedIds + umc.inboxDeletedIds), with starred floated to top.
+
+Part 1 — Storage and types
+1a. New storage keys
+Create gp/artifacts/universe-mode/src/lib/inbox.ts:
+
+import { useLocalStorage } from "./storage";
+import type { UniverseDate } from "./calendar";
+export type SenderType =
+  | "TALENT" | "FRONT_OFFICE" | "BACKSTAGE"
+  | "PRESS" | "MARKETING" | "MEDICAL"
+  | "SPONSOR" | "SYSTEM";
+export interface GeneratedInboxMessage {
+  id: string;
+  senderType: SenderType;
+  fromName: string;
+  fromWrestlerId?: string;
+  subject: string;
+  body: string;
+  templateId: string;
+  generatedAt: number;
+  universeDate: UniverseDate;
+  isAutoReply?: boolean;
+  inReplyToId?: string;
+}
+export interface GMReply {
+  id: string;
+  messageId: string;          // the original inbox message id
+  templateId: string;
+  bodyText: string;
+  createdNightNoteId?: string; // history entry id
+  at: number;
+}
+export function useInboxGenerated() {
+  return useLocalStorage<GeneratedInboxMessage[]>("umc.inboxGenerated", []);
+}
+export function useInboxArchivedIds() {
+  return useLocalStorage<string[]>("umc.inboxArchivedIds", []);
+}
+export function useInboxDeletedIds() {
+  return useLocalStorage<string[]>("umc.inboxDeletedIds", []);
+}
+export function useInboxStarredIds() {
+  return useLocalStorage<string[]>("umc.inboxStarredIds", []);
+}
+export function useInboxLastFire() {
+  return useLocalStorage<Record<string, number>>("umc.inboxLastFire", {});
+}
+export function useInboxReplies() {
+  return useLocalStorage<GMReply[]>("umc.inboxReplies", []);
+}
+Add all six new keys to APP_STORAGE_KEYS in gp/artifacts/universe-mode/src/lib/storage.ts so the universe export and factory reset both pick them up.
+
+1b. Cap the generated inbox
+Generated inbox is hard-capped at 300 entries. When generating new messages, trim oldest first. Prevents unbounded localStorage growth.
+
+Part 2 — Random message templates (the engine)
+Create gp/artifacts/universe-mode/src/lib/inbox-templates.ts:
+
+import type { Wrestler } from "@workspace/api-client-react";
+import type { Championship } from "./storage";
+import type { UniverseDate } from "./calendar";
+import type { SenderType } from "./inbox";
+export interface TemplateContext {
+  wrestler?: Wrestler;
+  championships: Championship[];           // titles this wrestler currently holds
+  daysSinceLastBooking: number;             // 999 if never
+  daysSinceLastMessage: number;             // for cooldown
+  daysAsChampion: number;                   // 0 if not champion
+  rosterSize: number;
+  currentDate: UniverseDate;
+}
+export interface InboxTemplate {
+  id: string;
+  senderType: SenderType;
+  subject: (ctx: TemplateContext) => string;
+  body: (ctx: TemplateContext) => string;
+  /** Returns true if this template is eligible for the given context. */
+  eligible: (ctx: TemplateContext) => boolean;
+  /** Higher = more likely to fire when eligible. 1-10 scale. */
+  weight: number;
+  /** Min days between two messages with this id from the same sender. */
+  cooldownDays: number;
+}
+export const INBOX_TEMPLATES: InboxTemplate[] = [/* see below */];
+Write at least 30 templates. Each template body is a hard-coded function that takes context and returns a string. Use the existing alignment-aware tone in WrestlerInbox.tsx as the voice reference.
+
+Talent templates (sender = wrestler):
+
+id	When eligible	Vibe
+talent.idle.complaint
+daysSinceLastBooking >= 21 and not champion
+"I'm watching my career rust on the bench. Get me on TV."
+talent.idle.injuryReturn
+wrestler.status === "INJURED" and daysSinceLastBooking >= 28
+"Doc cleared me yesterday. Ready when you are."
+talent.champ.brag
+daysAsChampion >= 30
+"Day {N}. Nobody's even close. Find me a real challenger."
+talent.champ.threat
+daysAsChampion >= 60
+"Going to break the all-time record at this rate. Just letting you know."
+talent.contender.titleShot
+not champion, wrestler.role === "MAIN_EVENTER" or "UPPER_MIDCARD"
+"I have earned a shot at {ChampionName}. Don't make me ask twice."
+talent.freeAgent.signMe
+wrestler.brand === "FREE_AGENT" and daysSinceLastBooking >= 56
+"Saw what you are doing with this place. I want in."
+talent.heel.allianceOffer
+alignment HEEL, has another HEEL never booked together
+"You and me on the same page could break this place."
+talent.face.thankYou
+alignment FACE, recently in a storyline
+"Just wanted to say thanks. The fans felt it."
+talent.tweener.swerveHint
+alignment TWEENER, has been booked recently
+"I have an idea you are not going to like at first. Trust me on it."
+talent.gimmick.changePitch
+wrestler.role === "MIDCARD" or lower
+"Time for a new look. I have something in mind."
+talent.tradeRequest
+brand RAW or SMACKDOWN, daysSinceLastBooking >= 14
+"Been thinking. Different brand might wake me up."
+talent.retirement.hint
+wrestler.notes mentions Hall of Famer / Legend
+"Got a few years left in me. Want to make them count."
+talent.anniversary
+currentDate.year > 0 and is roster anniversary
+"One year ago today. Best decision either of us made."
+Front Office templates (sender = "Adam Pearce" or "Triple H"):
+
+id	When eligible	Vibe
+fo.ple.warning
+A premium event is 28-42 days out
+"Heads up: {Event} is {N} weeks out. We need a main event."
+fo.vacant.belt
+Any active championship has no current champion
+"{Title} is sitting vacant. Need a tournament or a No.1 contender match."
+fo.morale.low
+Low booking activity (no shows/storylines for 2+ weeks)
+"Locker room is asking when the next big angle is coming."
+Backstage templates (sender = "Bruce Pritchard"):
+
+id	When eligible	Vibe
+backstage.morale.high
+After a big PLE or 3+ storylines in a week
+"Locker room morale is the highest it has been all year."
+backstage.tension
+Two HEELs from same brand never booked together
+"Word is {A} and {B} got into it backstage. Could be storyline material."
+backstage.veteran.advice
+A veteran (Hall of Famer in notes) gives advice
+"Old school says {Wrestler} reminds him of a young {LegendName}."
+Press templates (sender = "Reporter"):
+
+id	When eligible	Vibe
+press.interview.request
+Wrestler involved in active rivalry
+"{Outlet} wants 15 minutes with {Wrestler} before next show."
+press.controversy
+Heel champion, 45+ days as champion
+"Reporter writing piece questioning if {Wrestler}'s reign is good for business."
+Marketing templates:
+
+id	When eligible	Vibe
+mkt.merch.up
+Wrestler is currently champion
+"Merch numbers in: {Wrestler} up {N}% this month."
+mkt.house.show
+Random monthly
+"House show in {City} sold out. Crowd hot for {Wrestler}."
+Medical templates:
+
+id	When eligible	Vibe
+med.cleared
+Wrestler with status INJURED for 4+ weeks
+"{Wrestler} passed final medical. Cleared to compete."
+med.precaution
+Random low-frequency
+"{Wrestler} dealing with minor knock. Recommend lighter card next week."
+Sponsor templates:
+
+id	When eligible	Vibe
+sponsor.appearance
+Wrestler is FACE main eventer
+"{Sponsor} wants {Wrestler} for a meet-and-greet. Pays well."
+System templates:
+
+id	When eligible	Vibe
+system.year.mark
+Crossing into a new universe year
+"Year {N} of your Universe begins this week."
+system.reign.milestone
+Champion reaches 30 / 60 / 100 / 200 / 365 days
+"{Wrestler} has held {Title} for {N} days."
+system.magazine.hot
+New magazine just generated
+"Issue #{N} just hit the stands."
+That's 30 templates. Replit may add more in the same style. Names of cities, sponsors, outlets, legends should be hard-coded arrays at the top of the file (e.g. const CITIES = ["Dallas", "Boston", "Chicago", ...]; pickRandom(CITIES)).
+
+Part 3 — The scheduler
+In gp/artifacts/universe-mode/src/lib/inbox.ts, add:
+
+export function generateInboxMessagesOnAdvance(args: {
+  roster: Wrestler[];
+  championships: Championship[];
+  history: RivalryEntry[];
+  events: PremiumEvent[];
+  prior: UniverseDate;
+  next: UniverseDate;
+  lastFire: Record<string, number>;
+  templates: InboxTemplate[];
+}): {
+  newMessages: GeneratedInboxMessage[];
+  nextLastFire: Record<string, number>;
+};
+Rules:
+
+Hard cap: at most 3 messages per Advance call, no matter what.
+Compute daysSinceLastBooking per wrestler from history (look for any storyline/show/promo entry mentioning them).
+Compute daysSinceLastMessage per template+sender combo from lastFire.
+For each template, find every wrestler/sender for which eligible(ctx) === true and cooldownDays has passed.
+Weighted-random pick (using the template's weight) to fill the 3 slots. Bias to variety: never pick the same template twice in one Advance, never pick the same wrestler twice in one Advance.
+Include at least 1 non-talent message per Advance if any non-talent template is eligible.
+Update lastFire keyed by ${templateId}:${fromName}.
+Add unit tests in gp/artifacts/universe-mode/src/lib/inbox.test.ts covering: cap of 3, cooldown enforcement, eligibility filtering (idle vs active wrestler), weighted randomness with seeded RNG, never-twice-same-wrestler.
+
+Part 4 — Wire scheduler into Advance
+In gp/artifacts/universe-mode/src/components/UniverseClock.tsx, in handleAdvance, after setDate(next) and before maybeAutoGenerateWeeklyIssue(date, next), call the scheduler:
+
+const { newMessages, nextLastFire } = generateInboxMessagesOnAdvance({
+  roster, championships, history, events,
+  prior: date, next, lastFire, templates: INBOX_TEMPLATES,
+});
+if (newMessages.length > 0) {
+  setInboxGenerated(prev => {
+    const combined = [...newMessages, ...prev];
+    return combined.slice(0, 300); // hard cap
+  });
+  setInboxLastFire(nextLastFire);
+}
+Pull the new hooks at the top of the component. ZERO OpenAI calls in this flow.
+
+Part 5 — Inbox UI v2
+Heavy edits to gp/artifacts/universe-mode/src/components/WrestlerInbox.tsx. Keep the existing retro email aesthetic — same Press Start 2P font for chrome, same body font, same color palette.
+
+5a. Combined message source
+Rewrite buildMessages (or keep it and add a new buildAllMessages) to merge:
+
+History-derived messages (existing logic, unchanged)
+Generated messages from useInboxGenerated() (mapped to InboxMessage shape — add senderType, templateId, isAutoReply to the existing InboxMessage interface as optional fields)
+Apply filters in this order:
+
+If inboxDeletedIds.includes(id), drop entirely
+If inboxArchivedIds.includes(id), only show in Archive folder
+Sort: starred first, then unread, then by date desc
+5b. Folders + filter chips
+Above the message list, a horizontal chip row:
+
+ALL  UNREAD  STARRED  ARCHIVED  |  TALENT  FRONT OFFICE  BACKSTAGE  PRESS  MARKETING  MEDICAL  SYSTEM
+State: [folder, setFolder] (one of all | unread | starred | archived) and [senderFilter, setSenderFilter] (a Set<SenderType>). Apply both filters to the message list.
+
+Counts on each chip: UNREAD (12), STARRED (3), etc. Update live.
+
+5c. Search bar
+Above the chips, a small search input. Filters from, subject, and body case-insensitive. Empty = no filter. Use existing Input from components/ui/input.tsx.
+
+5d. Bulk select + actions
+Add a checkbox to each MessageRow. When 1+ are selected, show an action bar at the top of the list:
+
+[N selected]   [Mark Read] [Star] [Archive] [Delete]   [Cancel]
+Bulk actions update the corresponding *Ids arrays. Use the same toast pattern as elsewhere. Select-all-visible button in the action bar.
+
+5e. Per-message actions
+Each MessageRow gets a small action cluster on the right (visible on hover, always visible on touch):
+
+Star toggle
+Archive icon
+Delete icon (with single-click confirm — hold-to-delete or "tap again to confirm")
+In DetailView, add a footer action bar with the same actions plus a prominent REPLY button (see Part 6).
+
+5f. Mobile
+Folders chips collapse into a single horizontal scroll row. Bulk action bar sticks to bottom on mobile.
+
+Part 6 — Reply as GM
+Create gp/artifacts/universe-mode/src/components/InboxComposeReply.tsx. Opens as a Sheet (use existing components/ui/sheet.tsx) with:
+
+Header: "Reply to {fromName}" + the original message subject
+A template picker: list of canned GM responses appropriate for the message's templateId
+A "Custom note..." textarea below the templates (always available)
+Footer: Cancel / Send
+6a. Reply template registry
+In inbox-templates.ts, add:
+
+export interface ReplyTemplate {
+  id: string;
+  /** Which incoming templateIds this reply applies to. ["*"] = always available. */
+  appliesTo: string[];
+  label: string;          // shown in the picker, e.g. "Title shot at next PLE"
+  body: (ctx: { originalMsg: GeneratedInboxMessage | InboxMessage }) => string;
+}
+export const REPLY_TEMPLATES: ReplyTemplate[] = [/* see below */];
+Write at least 20 reply templates. Examples:
+
+id	appliesTo	label	body
+reply.titleShot.nextPLE
+talent.contender.titleShot, talent.idle.complaint
+"Title shot at next PLE"
+"Acknowledged. Title shot is yours at the next premium event. Bring it."
+reply.titleShot.earnIt
+talent.contender.titleShot
+"Earn it on the mic next week"
+"Cut a promo Monday. Sell me on you. Then we talk gold."
+reply.timeOff
+talent.idle.complaint, talent.tradeRequest
+"Take a week off, come back hungry"
+"Take next week dark. Come back swinging."
+reply.brandTrade.approved
+talent.tradeRequest
+"Trade approved"
+"Done. New brand starts next show. Make a statement."
+reply.brandTrade.denied
+talent.tradeRequest
+"Trade denied, more screen time coming"
+"Staying put. But you are getting more TV time. Watch."
+reply.gimmick.approved
+talent.gimmick.changePitch
+"New look approved"
+"Pitch the gimmick. We will roll it out next month."
+reply.alliance.approved
+talent.heel.allianceOffer
+"Form the alliance"
+"Do it. Both of you on Raw next week. I want a statement."
+reply.cutPromo
+*
+"Cut a promo Monday"
+"Mic time Monday. Make it count."
+reply.acknowledge
+*
+"Noted"
+"Heard you. Standing by."
+reply.silence
+*
+"Silent treatment (no reply sent)"
+""
+reply.fo.book
+fo.ple.warning, fo.vacant.belt
+"On it"
+"Booking decision coming this week. Stand by."
+reply.press.approve
+press.interview.request
+"Approve interview"
+"Approved. Tell them they get 15 minutes pre-show."
+reply.press.decline
+press.interview.request
+"Decline (heel character)"
+"Decline. {Wrestler} doesn't talk to {Outlet}. Use it for heat."
+reply.medical.holdUntilCleared
+med.precaution
+"Lighter card next week"
+"Lighter card it is. Don't risk it."
+reply.medical.welcomeBack
+med.cleared
+"Welcome back, big angle waiting"
+"Big angle waiting for you. Talk Friday."
+reply.sponsor.accept
+sponsor.appearance
+"Accept appearance"
+"Accept. Confirm logistics with talent relations."
+reply.sponsor.decline
+sponsor.appearance
+"Decline (character protection)"
+"Decline. Wrestler is not for hire this month."
+reply.system.acknowledge
+system.*
+"Acknowledged"
+"Logged."
+reply.idle.bigPushIncoming
+talent.idle.complaint, talent.freeAgent.signMe
+"Big push incoming"
+"You are getting a push. Starts next week. Don't fumble it."
+reply.custom
+*
+"Custom..."
+"" (uses the textarea)
+The picker shows reply templates whose appliesTo includes the original message's templateId, plus all ["*"] templates.
+
+6b. What happens on Send
+On confirm:
+
+Build the reply text (template body or custom textarea).
+Create a new history entry of kind: "log":
+const note: RivalryEntry = {
+  kind: "log",
+  id: crypto.randomUUID(),
+  createdAt: Date.now(),
+  universeDate,
+  text: `[GM Reply to ${msg.from}] ${replyText}`,
+};
+Push to useHistory().
+If the recipient is a roster wrestler AND has any active rivalry, append note.id to that rivalry's historyEntryIds (use existing useRivalries). If multiple active rivalries, pick the one with the most recent lastActivityDate.
+Save a GMReply entry to umc.inboxReplies linking it back: { messageId, templateId, bodyText, createdNightNoteId: note.id, at: Date.now() }.
+Generate an auto-reply InboxMessage from the wrestler back to the GM, using a small set of alignment-aware ack templates:
+HEEL: "Good. Don't waste my time. — {Wrestler}"
+FACE: "Appreciate it. Won't let you down. — {Wrestler}"
+TWEENER: "We will see how this plays out. — {Wrestler}"
+For non-talent senders: skip the auto-reply. Push to useInboxGenerated() with isAutoReply: true and inReplyToId: msg.id.
+Mark the original message as read (add to inboxReadIds).
+Toast: "Reply filed as canon. {Wrestler} acknowledged."
+Close the sheet.
+6c. Reply button placement
+Detail view footer: prominent "REPLY" button next to BACK
+Each MessageRow on hover/touch: small "Reply" icon
+If the message has a senderType === "SYSTEM", hide the Reply button entirely.
+
+Part 7 — Dashboard ripple
+In gp/artifacts/universe-mode/src/components/Dashboard.tsx, the Talent Noise panel currently uses inboxMessages.slice(0, 5). Update it to:
+
+Combine history-derived + useInboxGenerated() (use the same unified builder from Part 5a).
+Filter out archived and deleted.
+Keep the slice(0, 5).
+So generated messages also appear in the Dashboard preview and respect the user's lifecycle choices.
+
+Part 8 — Manual test checklist
+Run through every item before marking done:
+
+Fresh universe, advance one week. 1-3 generated messages appear in Inbox. ZERO network calls to OpenAI.
+Advance multiple times. Cap of 3 per advance is respected.
+Wrestler not booked for 28+ days: receives an idle complaint within 1-2 advances.
+Make a wrestler champion, advance 30 days: receives a champ brag.
+Front Office message about an upcoming PLE fires when a PLE is 4-6 weeks out.
+Star a message: it pins to top in the All folder.
+Archive: message moves out of Inbox, visible only in Archived folder. Restore via star or another archive toggle works.
+Delete: gone forever, not in any folder.
+Bulk select 3 messages, bulk archive: all three move at once.
+Search "Punk": only messages from or about Punk show up.
+Filter chip TALENT only: only talent messages visible.
+Reply to a talent idle complaint with "Title shot at next PLE": confirm a Night Note appears in History tab with [GM Reply to ...] text, the rivalry's historyEntryIds got the note id appended, and an auto-reply from the wrestler appears in inbox marked as "auto-reply" stylistically.
+Reply to a System message: no Reply button.
+Reply with "Custom..." textarea: free text saves correctly.
+Reply with "Silent treatment": no auto-reply generated, but Night Note still filed.
+Network tab during all of the above: NOT A SINGLE call to /booker/* endpoints.
+Token meter (from previous PR) reads zero new tokens spent.
+Universe export downloaded as JSON contains all six new keys (umc.inboxGenerated, umc.inboxArchivedIds, umc.inboxDeletedIds, umc.inboxStarredIds, umc.inboxLastFire, umc.inboxReplies).
+Re-importing on a clean browser restores everything: starred, archived, generated messages, replies.
+Factory Reset wipes all six keys.
+Dashboard "Talent Noise" panel shows generated messages alongside derived ones, respects archive/delete.
+No emojis added anywhere in this PR.
+Hard cap: with 200+ wrestlers and 100+ advances, umc.inboxGenerated never exceeds 300 entries.
+Files at a glance
+NEW:
+
+gp/artifacts/universe-mode/src/lib/inbox.ts
+gp/artifacts/universe-mode/src/lib/inbox.test.ts
+gp/artifacts/universe-mode/src/lib/inbox-templates.ts
+gp/artifacts/universe-mode/src/components/InboxComposeReply.tsx
+EDITED:
+
+gp/artifacts/universe-mode/src/lib/storage.ts (add 6 new keys to APP_STORAGE_KEYS)
+gp/artifacts/universe-mode/src/components/WrestlerInbox.tsx (folders, filters, archive/delete/star/bulk, reply button, search, combined message source)
+gp/artifacts/universe-mode/src/components/UniverseClock.tsx (call scheduler in handleAdvance)
+gp/artifacts/universe-mode/src/components/Dashboard.tsx (Talent Noise reads combined source, respects lifecycle)
+NOT TOUCHED:
+
+Anything in Roster.tsx, Legacy.tsx, Rivalries.tsx, RivalryDetail.tsx, News.tsx, Shows.tsx
+The existing useInboxReadIds hook (kept as the read-state source of truth for both message sources)
+Any seed file, fonts, calendar logic
+Any AI route in gp/artifacts/api-server/src/routes/booker.ts
+The Token Meter wiring from the previous PR
+End of prompt.

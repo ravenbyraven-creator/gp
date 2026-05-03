@@ -1,0 +1,144 @@
+I want to create a new top navigation tab called “Legacy” and move Championships out of the Roster tab into this new Legacy tab.
+
+Important:
+Roster should focus on people, stables, assignments, and talent management.
+Legacy should focus on championships, title history, records, milestones, and the prestige of my universe.
+
+Goal:
+Create a Legacy tab that makes championship history feel important, visual, and story-driven.
+
+This should not feel like a spreadsheet or a plain list of champions.
+It should feel like:
+“Here’s the history of your universe — and why it matters.”
+
+Main Scope For First Version:
+Focus on championship history first:
+- current championships
+- current champions
+- title reign timeline
+- title changes
+- reign length
+- records and milestones
+- story notes for important reigns
+
+Navigation:
+- Add a new “Legacy” tab next to News and Roster in the main app navigation.
+- Remove the Championships section from the Roster tab.
+- Keep Roster focused on Wrestlers, Stables/Tag Teams, and Assign Talent.
+- Move all existing championship data and management into Legacy.
+- Do not break existing championship localStorage data.
+- Do not create a new disconnected championship system.
+
+Legacy Tab Sections:
+
+1. Championship Showcase
+- Display all active championships as premium title cards.
+- Show belt image, title name, brand/division, current champion, and reign length.
+- If vacant, show a strong “Vacant” state.
+- Clicking a championship opens its full legacy/detail view.
+
+2. Title Detail / Reign Timeline
+Each championship should have a visual timeline of every reign:
+- champion name
+- champion photo if available
+- belt image
+- date won
+- date lost if ended
+- reign length
+- who they beat
+- how they won
+- how they lost
+- linked rivalry/canon moment if available
+- notes/story recap
+
+Example AI-style notes:
+- “Ended a dominant 120-day reign.”
+- “Shocked the universe with an upset win.”
+- “Won after faction interference changed the title picture.”
+- “The reign ended when the rivalry finally reached its blowoff.”
+
+3. Record A Title Change
+Users should be able to log a title change two ways:
+
+Manual quick entry:
+- championship
+- new champion
+- previous champion
+- universe date
+- event/show
+- how they won
+- notes
+
+Optional connected entry:
+- link the title change to an existing canon moment, rivalry entry, or history item
+- if linked, the title change should appear connected to that story
+
+Important:
+Do not force users to log every match. Only title changes and important title defenses/moments.
+
+4. Records & Milestones
+Add a records section that feels prestigious:
+- longest reign
+- shortest reign
+- most title wins
+- current longest active reign
+- most defenses if defenses are tracked
+- champions who never lost the title if applicable
+- fun milestone cards
+
+These should feel like WWE historical graphics, not spreadsheet stats.
+
+5. AI Legacy Notes
+AI can help summarize title reigns, but should not invent history.
+AI should use saved canon, title change entries, rivalry moments, and notes.
+
+Example:
+- “Cody’s reign became defined by surviving Bloodline interference.”
+- “Rhea’s title run turned into a dominance arc after injuring Liv.”
+- “Gunther’s reign ended only after months of challengers failing.”
+
+If AI is unavailable, manual notes should still work.
+
+Data / Wiring Requirements:
+- Reuse existing championships data from Roster 2.0.
+- Add title reign history data connected to championship IDs and wrestler IDs.
+- Current champion should be derived from the latest active reign or kept synced with existing currentChampionIds.
+- Do not duplicate champion state in a way that gets out of sync.
+- Championship data should still feed:
+  - Gorilla Position dashboard
+  - Chat
+  - Creative Desk
+  - Rivalries
+  - News
+  - AI context
+  - champion belt overlays on wrestler photos
+- If a champion changes in Legacy, belt overlays should update everywhere.
+
+Design:
+- Make Legacy feel premium, historic, and important.
+- Use belt imagery, champion portraits, timeline visuals, record cards, and dramatic copy.
+- Match the dark WWE/Gorilla Position aesthetic.
+- Avoid plain tables.
+- Avoid making it look like a database screen.
+- Think WWE title lineage package / Hall of Champions / video package history.
+
+Empty States:
+If no championships exist:
+- explain that Legacy tracks title prestige and championship history
+- offer “Create Championship”
+
+If championships exist but no reign history:
+- show current champion
+- invite user to “Start This Title’s Legacy” or “Record First Reign”
+
+Verification:
+- Existing championships from Roster appear in Legacy.
+- Roster no longer shows Championships section.
+- Stables and Wrestlers still work in Roster.
+- User can create/edit/delete championships in Legacy.
+- User can record title changes.
+- Reign timeline displays correctly.
+- Current champion updates everywhere.
+- Belt overlays still work across the app.
+- Dashboard and AI context still receive championship info.
+- Run typecheck and tests if available.

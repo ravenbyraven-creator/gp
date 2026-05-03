@@ -1,0 +1,113 @@
+I want to build Roster 2.0 for my WWE 2K Universe Mode companion app.
+
+Please read and follow the existing app vision/docs first, especially VISION.md and UNIVERSE_MODE_ASSISTANT.md. Keep the app as a ChatGPT-style Universe Mode writers’ room companion, not a homework tracker. Everything must stay wired together: roster data, championships, stables, rivalries, history, news, chat, manual canon moments, and AI booking should all feed each other.
+
+Feature goal:
+Turn the Roster tab into a Universe control room with 3 main areas:
+1. Wrestlers
+2. Championships
+3. Stables / Tag Teams
+
+Roster Tab Structure:
+- Add a clean section/tab/filter inside the Roster page for Wrestlers, Championships, and Stables.
+- Keep the existing wrestler roster behavior working.
+- Do not remove existing roster data or break existing localStorage data.
+- Use the existing app design language: dark WWE-style creative board, kayfabe tone, polished cards, not spreadsheet UI.
+
+Championships Requirements:
+- Users can add, edit, and delete championships.
+- A championship should support:
+  - title name
+  - brand
+  - division/type: world, women’s, midcard, tag, specialty, custom
+  - current champion or champions
+  - title belt image/photo
+  - active/inactive status
+  - optional notes/current direction
+- Users can change the champion manually.
+- Users can change/upload/edit the title photo.
+- Championships should appear in AI context so chat, show generation, rivalry suggestions, news, and creative desk understand who the champions are.
+- If a champion is involved in a rivalry, generated ideas should understand the title stakes.
+- Empty states should explain that championships help the AI understand stakes.
+
+Stables / Tag Teams Requirements:
+- Users can add, edit, and delete stables/tag teams.
+- A stable/tag team should support:
+  - stable/team name
+  - members
+  - leader
+  - manager
+  - brand
+  - alignment: face, heel, tweener
+  - status: active, teasing breakup, broken up, reunited, inactive
+  - stable logo/photo
+  - optional notes/current direction
+- Users can upload/change/remove a stable logo/photo.
+- If no stable logo/photo exists, display the stable as member names, for example:
+  - “Randy Orton & Batista”
+  - “Roman Reigns, Solo Sikoa & Jimmy Uso”
+- The stable/team name can still be custom, but the fallback display should use the member names when no logo or custom name is available.
+- Stable data should appear in AI context so chat, show generation, rivalry suggestions, news, and creative desk understand alliances, managers, tag teams, factions, and possible betrayals.
+- AI should be able to reference stables naturally, but should not invent stable history that is not saved in the app.
+- Empty states should explain that stables help the AI understand alliances and faction drama.
+
+Wrestler Improvements:
+- Add or support fields for each wrestler:
+  - brand
+  - alignment
+  - status: active, injured, inactive, returning soon
+  - role: main eventer, upper midcard, midcard, tag team, manager, prospect
+  - current creative direction/notes
+- These fields should feed AI context.
+- Keep this lightweight and optional so the app does not feel like homework.
+
+Connected App Behavior:
+- Update the local storage/data model carefully.
+- Preserve existing saved roster, history, rivalries, chat, news, and manual canon moments.
+- Add new storage hooks/helpers for championships and stables if needed.
+- Update buildBookerContext or the equivalent AI context builder so championships and stables are included.
+- Make sure AI tools can use this context in:
+  - Creative Desk
+  - Chat
+  - Show generation
+  - Storyline generation
+  - Promo generation
+  - Surprise generation
+  - News/magazine generation
+  - Rivalry analysis
+- Do not create disconnected duplicate data.
+- Championships should reference wrestler IDs when possible.
+- Stables should reference wrestler IDs when possible.
+- If a wrestler name changes, the connected championship/stable display should still work through IDs.
+
+UI / UX:
+- Make Roster 2.0 feel like a Universe control room.
+- Add a top dashboard showing:
+  - current champions
+  - active stables
+  - injured/inactive wrestlers
+  - wrestlers with no current creative direction
+  - wrestlers currently in rivalries if available
+- Use helpful kayfabe empty states.
+- Keep manual editing simple.
+- Avoid making users fill out too much before they can use the app.
+- Add image upload/change/remove controls for championship photos and stable logos.
+- Images should persist locally if that is how the rest of the app currently stores user data.
+
+AI / Writer’s Room Rules:
+- AI should use championships as stakes.
+- AI should use stables for alliances, interference, tag matches, betrayals, and faction drama.
+- AI should respect current champions and not randomly change titles unless the user asks.
+- AI should respect stable membership and not invent members unless asked.
+- AI should mention title opportunities, faction tension, and manager involvement when relevant.
+- If AI is unavailable, manual editing and saving should still work.
+
+Testing / Verification:
+- Add or update tests for any storage/context helper changes.
+- Run typecheck.
+- Run tests.
+- Confirm existing roster, rivalry, history, news, chat, and creative desk behavior still works.
+- Confirm new championships and stables are included in the AI context.
+- Confirm stable logo fallback works:
+  - if logo exists, show logo/card
+  - if no logo exists, show member names like “Randy Orton & Batista”

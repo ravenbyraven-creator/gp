@@ -1,0 +1,88 @@
+I want to update my app to use polished right-click context menus for roster management actions.
+
+Please search the app first and find all current edit/delete/action buttons for:
+- Wrestler profiles
+- Championships
+- Stables / Tag Teams
+- Any Roster 2.0 cards or list items that currently use corner edit buttons
+
+Goal:
+Replace the generic visible edit/delete buttons in the top-right corner of roster cards with a polished context menu interaction.
+
+What I Mean:
+When the user right-clicks a wrestler, championship, stable, or roster card, a menu should appear with actions like:
+- Edit
+- Delete
+- View Details if available
+- Change Photo / Logo / Belt Image if relevant
+- Set Champion if relevant
+- Manage Members if relevant
+
+Important UX Rule:
+Do not make this desktop-only. Keep a small polished three-dot / more-actions button on each card that opens the same menu, so mobile users and users who do not right-click can still use the actions.
+
+Scope:
+- Apply this to Wrestlers, Championships, and Stables / Tag Teams.
+- Remove or reduce the current obvious edit/delete buttons in the card corner if they make the UI look cluttered.
+- Replace them with the context menu and/or a subtle three-dot menu.
+- Do not remove functionality.
+- Do not break saved data.
+- Do not redesign the whole roster page.
+- Keep the current fire polished edit screens Replit just made.
+
+Design Requirements:
+- The context menu should match the app aesthetic: dark, premium, WWE creative room, not default browser menu.
+- Use existing UI components/patterns if the app already has a dropdown menu, context menu, or Radix/shadcn menu component.
+- Menu styling should match the rest of the app: dark surfaces, gold/red accents, clean borders, hover states, and good spacing.
+- Destructive actions like Delete should be visually separated and clearly marked.
+- Add confirmation before deleting a wrestler, championship, or stable.
+- Menu labels should feel branded but still clear.
+
+Suggested Menus:
+
+Wrestler card menu:
+- Edit Talent Profile
+- Change Photo
+- View Rivalries if available
+- Set Active / Inactive if supported
+- Delete Wrestler
+
+Championship card menu:
+- Edit Championship
+- Change Belt Photo
+- Crown / Change Champion
+- Mark Active / Inactive
+- Delete Championship
+
+Stable / Tag Team card menu:
+- Edit Stable
+- Change Logo
+- Manage Members
+- Mark Active / Inactive
+- Delete Stable
+
+Behavior Requirements:
+- Right-click on a card opens the menu.
+- Clicking the three-dot button opens the same menu.
+- Keyboard/accessibility behavior should still work if using existing menu components.
+- The menu should not interfere with normal card clicks.
+- If clicking a card opens details, keep that behavior separate from right-click/menu actions.
+- On mobile, users should be able to tap the three-dot menu.
+
+Implementation Requirements:
+- Search for repeated edit/delete button code and consolidate into reusable action menu components if it makes sense.
+- Keep the code clean and consistent with existing app patterns.
+- Use existing modal/edit screen functions instead of creating duplicate edit flows.
+- Do not create disconnected logic.
+- All menu actions should call the same edit/delete/change handlers the old buttons used.
+
+Verification:
+- Confirm right-click menu works for wrestler cards.
+- Confirm right-click menu works for championship cards.
+- Confirm right-click menu works for stable/tag team cards.
+- Confirm three-dot menu works on each card.
+- Confirm edit screens still open correctly.
+- Confirm delete still asks for confirmation.
+- Confirm images/logos/belt photos can still be changed.
+- Confirm mobile layout is still usable.
+- Run typecheck and tests if available.

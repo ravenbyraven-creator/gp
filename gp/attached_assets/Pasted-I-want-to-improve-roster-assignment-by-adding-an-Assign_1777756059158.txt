@@ -1,0 +1,114 @@
+I want to improve roster assignment by adding an “Assign Talent” experience to the Roster tab.
+
+Current issue:
+The current Mass Select feature works, but it feels like a basic admin tool. I want assigning wrestlers to shows/brands to feel easier, faster, and more immersive for users.
+
+Goal:
+Add an “Assign Talent” mode inside the Roster tab that feels like a WWE Draft Board / Gorilla Position talent wall.
+
+Important:
+- Do not break the existing Roster 2.0 features.
+- Do not break wrestler photos, championship overlays, stables, championships, context menus, or edit dialogs.
+- Do not create duplicate roster assignment data.
+- Assignments must update the existing wrestler show/brand field already used by the rest of the app.
+
+Feature:
+Add a button or mode called “Assign Talent.”
+
+When the user opens Assign Talent:
+- Show a visual assignment board.
+- Shows/brands appear as columns or cards:
+  - Raw
+  - SmackDown
+  - NXT
+  - Free Agent
+  - any custom shows the user has created
+- Wrestlers appear as compact talent cards.
+- Talent cards should show:
+  - wrestler photo
+  - name
+  - current show/brand
+  - role/status if available
+  - champion belt overlay if they are champion
+- Users should be able to quickly move wrestlers to a show/brand.
+
+Interaction requirements:
+- Use a simple stable interaction first.
+- If drag-and-drop is easy and reliable, use it.
+- If drag-and-drop adds too much complexity, use click-to-assign instead:
+  - select one or more wrestlers
+  - choose destination show/brand
+  - apply assignment
+- Add right-click/context menu actions on wrestler cards:
+  - Assign to Raw
+  - Assign to SmackDown
+  - Assign to NXT
+  - Assign to Free Agent
+  - Assign to custom show
+- Keep or improve Mass Select as a backup, but make Assign Talent the nicer main flow.
+
+Multi-select:
+- Let users select multiple wrestlers inside Assign Talent.
+- Show a bottom action tray when wrestlers are selected:
+  - “X selected”
+  - Assign to show dropdown
+  - Apply
+  - Clear selection
+- This should replace the feeling of manually using Mass Select every time.
+
+Filters/search:
+Add helpful filters so users can find who needs assignment:
+- Search by name
+- Unassigned
+- Free Agents
+- Champions
+- Active
+- Inactive
+- No Creative Direction
+- By role
+- By alignment
+
+Design:
+- Make the mode feel like a WWE Draft Board / Gorilla Position talent wall.
+- Use existing polished Roster 2.0 styling.
+- Use show colors/images if available.
+- Avoid spreadsheet UI.
+- Make it feel immersive but still easy.
+- Keep it responsive on mobile.
+- On mobile, prioritize tap/select/apply over drag-and-drop.
+
+Wiring:
+- Assignment changes should update the same roster data used by the whole app.
+- If a wrestler changes show/brand, it should update everywhere:
+  - Roster cards
+  - Gorilla Position dashboard
+  - Chat AI context
+  - Creative Desk
+  - Rivalries
+  - News
+  - Shows
+- Championships and stables should remain connected through wrestler IDs.
+- If a stable has members split across different brands, show a subtle note/warning but do not block the user.
+
+Optional enhancement:
+Add a “Suggest Brand Split” button later or behind a simple UI:
+- AI can suggest assignments based on roster, champions, stables, rivalries, roles, and active stories.
+- AI should not apply changes automatically.
+- User must review and apply suggestions manually.
+- Do not build this if it makes the first version too large.
+
+Empty states:
+- If no wrestlers exist, show a helpful kayfabe message.
+- If no custom shows exist, still show Raw, SmackDown, NXT, and Free Agent if those are already supported.
+- If everyone is assigned, show that the board is clean but still allow reassignment.
+
+Verification:
+- Confirm Assign Talent opens from the Roster tab.
+- Confirm assigning one wrestler updates their show/brand.
+- Confirm assigning multiple wrestlers works.
+- Confirm context menu assignment works.
+- Confirm champion overlays still show.
+- Confirm stables/championships still work.
+- Confirm dashboard and AI context reflect updated assignments.
+- Confirm mobile layout is usable.
+- Run typecheck and tests if available.

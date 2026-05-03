@@ -1,0 +1,118 @@
+I want to redesign the News tab page to look like WWE.com circa 2003-2004 — the "scratch logo" era. This is a UI-only change. Do not modify the magazine cover layout, the IssueView, the RumorView, the data model, the AI generation, the OpenAPI spec, the codegen, or the server routes. Only modify News.tsx, the news-tab CSS in index.css, and add the small static SVG/PNG assets needed for the new look.Read Universe-Mode/UNIVERSE_MODE_ASSISTANT.md and Universe-Mode/VISION.md BEFORE writing any code so you know the project rules. The Newsstand tab is the sanctioned color exception — full vintage palette is allowed here, nowhere else.The reference vibe — WWE.com 2003-2004The user wants the News tab page to evoke WWE.com from the early scratch-logo era. Specific visual hallmarks:
+Background: dark steely gray-to-black, not brown. Faint vertical gradient. Subtle scanline or brushed-metal texture overlay.
+Top hero panel: large featured panel with a wrestler photo collage and a layered scratch-style headline. Red accent strip. Aggressive photo treatment (high contrast, slight saturation boost, vignette).
+Right-side HEADLINES sidebar: vertical stack of recent rumor cards, each with a small thumbnail photo + one-line headline. Cards separated by thin red horizontal rules. "THE LATEST" or "HEADLINES" header in scratchy red type.
+Below the hero: a row of 3-4 smaller "story panel" cards. Each shows a wrestler photo + a short scratch headline. These represent past issues you can click into.
+Bottom strip: a horizontal row of past-issue thumbnail covers (the existing MagazineCover component at size="thumb" works for this — keep using it), labeled "BACK ISSUES" or "ON THE RACK".
+The WWE scratch aesthetic: paint-stroke / torn-edge graphics in red and black used as accent dividers, behind headers, framing photos. We'll create static SVG assets for these and reuse them.
+Color palette for the News tab (sanctioned exception)These are the only colors used inside the News tab. Do NOT introduce others:
+#0a0a0a — near-black, primary background
+#1a1a1a to #2a2a2a — gradient gray for panels
+#3a3a3a — chrome/silver borders and brushed metal
+#dc1e1e — brand red, primary accent (already in use)
+#8a0000 — deep blood red, used for the scratch logo strokes and aggressive accents
+#f4c41a — yellow, used SPARINGLY — only for "BREAKING" tags and the burst sticker on covers (which already exists)
+#ffffff — white text on photos and primary headlines
+#9a9a9a — muted gray for secondary text
+Outside the News tab the monochrome+brand-red rule still applies.Layout — top to bottom1. Top header stripA horizontal black bar at the top of the page (inside the news tab content area, below the main app header). Contents:
+Left: a "scratch logo" treatment of the word "NEWS" or "GORILLA POSITION NEWS" — paint-stroke red SVG behind the text. Use the new asset described in the Assets section.
+Right: the two action buttons, restyled — PRINT WEEKLY ISSUE and SPILL A RUMOR. Style them like 2003 WWE.com action buttons: dark gray gradient background, red border, white text, subtle inner highlight, slightly chamfered corners. NOT the flat yellow rectangles they are now.
+Below the header strip, a thin red horizontal rule (1px, brand red).2. Hero panelA large rectangular panel — full width on mobile, ~68% width on desktop with the headlines sidebar taking the remaining ~32%. Contents:
+Background: the latest issue's featuredWrestlerId photo, full-bleed, with a heavy photo treatment: contrast +20%, saturation +10%, a black vignette around the edges, and a left-to-right gradient overlay (transparent on the right, ~60% black on the left) so the headline text on the left is readable.
+Top-left of panel: small red caption text, all caps, e.g., "THIS WEEK'S ISSUE — ISSUE #18 — MAY · WK 2"
+Bottom-left of panel: a giant scratch-style headline taken from the latest issue's cover.primaryHeadline. Render in heavy condensed display font (Oswald), white fill, slight italic, with a paint-stroke SVG mask underneath that gives it the scratched/torn look (asset described below). Cap at 2 lines, scale font down if longer than 4 words.
+Below the headline: a 1-line subhead from cover.primarySubhead if present, in muted gray
+Bottom-right of panel: a small "READ ISSUE" button — dark gray gradient with red border, opens the IssueView for that issue (existing component, do not change)
+Empty state (no issues yet): show a placeholder hero with the GP scratch logo huge in the center, a subhead reading "NO ISSUES ON THE STAND. PRINT THE FIRST ONE.", and the PRINT WEEKLY ISSUE button rendered larger underneath.
+3. Headlines sidebar (right side)A narrower panel sitting to the right of the hero on desktop. On mobile, it stacks below the hero.
+Header: the text "HEADLINES" or "THE LATEST" in heavy red display font, with a thin paint-stroke red SVG accent behind it
+Below the header: a vertical list of the most recent rumors (up to 5), each rendered as a small horizontal card:
+
+Left: a small ~60x60px square thumbnail. If the rumor body mentions a wrestler whose name is in the roster AND has an imageUrl, use that wrestler's photo. Otherwise use a generic dark gray placeholder with a small white "DIRT" or "RUMOR" label
+Right: the rumor's headline, white, max 2 lines, sentence case (NOT all caps — that's reserved for issue headlines)
+Below: a 1-line excerpt of the rumor body, gray, truncated
+Each card separated by a 1px red horizontal rule
+
+
+Empty state (no rumors): "NO DIRT YET. SPILL A RUMOR TO START THE BUZZ." in muted gray
+Bottom of sidebar: a "+ SPILL ANOTHER" small button if there are 1+ rumors already (saves a tap from going back to the top)
+4. Story panels rowBelow the hero + sidebar, a horizontal row (or grid on smaller screens) of 3-4 story panel cards. Each represents one of the features inside the latest issue (not past issues — past issues come below).
+Each story panel: ~280x180px on desktop, full-width stacked on mobile
+Background: if the feature has a featuredWrestlerName that maps to a roster wrestler with an image, use that wrestler's photo as the background. Same magazine-photo treatment.
+Bottom-left overlay: the feature's headline, white, scratch-treated, ALL CAPS
+Hover state on desktop: subtle scale-up (1.02x) and brighter border
+Click: opens the IssueView popup, scrolled to that feature's spread (or just opens the issue if scroll-to-spread is too complex — judgment call)
+If there are fewer than 3 features, fill the remaining slots with empty placeholder cards reading "MORE COMING SOON"
+5. Back issues stripBelow the story panels, a horizontal scrollable strip of past issue cover thumbnails.
+Header: "ON THE RACK" or "BACK ISSUES" in heavy red display font
+Strip: uses the existing MagazineCover component with size="thumb". Each thumbnail is the cover at small size. Tap opens the issue.
+The strip scrolls horizontally on overflow. Show ~4-5 thumbnails on desktop without scrolling.
+If there are 0 or 1 issues total, omit this section entirely.
+6. Bottom: the existing breaking tickerKeep the existing scrolling ticker at the bottom. Restyle it:
+
+Dark gray gradient background (NOT pure black)
+Red BREAKING badge on the far left
+White ticker text
+Items separated by small red diamonds (◆) instead of vertical rules
+Slightly faster scroll
+Static assets to createAdd these new SVG files to artifacts/universe-mode/public/news/:
+scratch-logo.svg — the "NEWS" or "GORILLA POSITION NEWS" text rendered as a paint-stroke design. Multiple jagged red brush strokes overlapping, slight rotation, rough edges. Reference: the WWE Scratch logo (2002-2014 era). Make it 400x100 viewbox, scalable.
+
+scratch-accent-divider.svg — a horizontal paint-stroke red divider, 800x12 viewbox. Used behind section headers like HEADLINES and BACK ISSUES.
+
+scratch-headline-mask.svg — a torn/scratched mask shape that can be applied as a background to headline text. Optional — if implementing as CSS background-clip is too complex, use a simpler approach (text-shadow + a slight rotation + Oswald italic). Don't spend more than reasonable time on this.
+
+brushed-metal.svg — a subtle vertical-streak texture for chrome panels and buttons. Light gray streaks on a darker gray. 200x40 viewbox, repeats horizontally.
+If you can't generate the scratch SVGs convincingly with code, fall back to:
+
+A bold italic Oswald headline with a slight transform skew (-3deg) and a heavy red text-shadow
+A solid red gradient bar instead of the paint-stroke divider
+A simple linear-gradient for brushed metal
+The fallback is fine. Don't over-engineer the SVGs — the layout matters more.CSS changesMove all existing news-tab CSS in index.css from the current "rack-shelf" / "rumor-paper" cream/yellow look to the new dark steel-and-red palette. Keep only the CSS scoped to .news-tab so it doesn't leak.Specifically:
+
+Replace .news-tab body background gradient with dark gray (#0a0a0a → #1a1a1a vertical gradient)
+Add .news-tab .scratch-header for the hero panel headline treatment
+Add .news-tab .story-panel for the smaller feature cards
+Add .news-tab .headlines-card for the sidebar rumor cards
+Add .news-tab .chrome-button for the dark gradient button style with red border
+Remove the .rack-shelf cream-yellow style (no longer used)
+Remove the .rumor-paper cream-tan style — rumors render differently now (in the sidebar with a darker treatment)
+What NOT to do
+Do NOT modify MagazineCover.tsx, IssueView.tsx, or RumorView.tsx. Those keep their WWF Magazine aesthetic for inside-the-issue viewing.
+Do NOT modify the AI generation prompts or the OpenAPI spec.
+Do NOT modify the data model or the localStorage keys.
+Do NOT add new dependencies.
+Do NOT introduce colors outside the palette specified above. Specifically: no neon pink, no purple, no green (except the existing burst-sticker green INSIDE the cover, which lives in MagazineCover.tsx and isn't being touched).
+Do NOT touch any file outside the News tab. The monochrome rule still rules everywhere else.
+Do NOT break the existing IssueView or RumorView popup flows. Test that clicking the hero panel READ ISSUE button, a story panel, or a back-issue thumbnail still opens the IssueView correctly.
+Do NOT remove the breaking ticker. Restyle it, don't delete it.
+Do NOT use emojis anywhere. The 2003 WWE.com aesthetic predates emoji web culture.
+Documentation updateBrief update to Universe-Mode/UNIVERSE_MODE_ASSISTANT.md:
+Under the existing Tab 0: NEWS description, add a sub-paragraph describing the new layout: "The newsstand page itself uses a WWE.com 2003-2004 'scratch logo' aesthetic — dark steel-and-red palette, hero panel with featured photo, headlines sidebar, story panels, and back issues strip. The IssueView and RumorView popups retain the WWF Magazine cover aesthetic — two complementary styles for two contexts."
+Under Visual System → Color exception — NEWS tab, expand the palette description to include the dark gray steel tones (#0a0a0a, #1a1a1a, #2a2a2a, #3a3a3a) and the deep blood red (#8a0000) as sanctioned in addition to the existing red/yellow/green/blue magazine palette.
+Add a short entry under Recent Changes at the bottom dated today.
+Update replit.md Recent Changes with a one-line note.Acceptance check before you tell me you're done
+ News tab page background is dark steel gradient, NOT brown
+ Top header has scratch-style "NEWS" branding on the left, two chrome-style buttons on the right
+ Hero panel renders with the latest issue's featured wrestler photo as full-bleed background
+ Hero panel headline is the latest issue's primary headline, scratch-treated, in white display font
+ Headlines sidebar on the right shows recent rumors as horizontal cards with thumbnails + headlines
+ Each headlines card is separated by a thin red horizontal rule
+ Story panels row below the hero shows the issue's features as photo + headline cards
+ Back issues strip at the bottom shows past issue cover thumbnails using the existing MagazineCover at size="thumb"
+ Breaking ticker at the bottom is restyled (dark gradient, red BREAKING badge, white text, diamond separators)
+ All clicks still work — hero opens IssueView, story panels open IssueView, back issues open IssueView, headlines cards open RumorView
+ No yellow/cream backgrounds anywhere on the news page itself (yellow stays only inside the magazine cover)
+ No colors outside the spec'd palette
+ The MagazineCover, IssueView, RumorView components are unchanged — their WWF Magazine look is preserved
+ Empty states render: empty hero, empty headlines sidebar, no back-issues strip when 0-1 issues
+ Mobile: hero stacks above sidebar, story panels stack vertically, back issues remain horizontally scrollable
+ pnpm run typecheck passes
+ pnpm run build succeeds
+ Both docs updated
+Build it, run typecheck and build, and send me back:
+
+A summary of what changed
+A screenshot of the news tab page on desktop with at least one issue and 2-3 rumors generated, so I can see the new look land
+Any decisions you made that I didn't specify (especially how you implemented the scratch logo and the photo treatment on the hero panel)
+Stop copying here

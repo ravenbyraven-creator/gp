@@ -1,0 +1,99 @@
+I want to do a full mobile responsiveness and usability pass for my app.
+
+Important:
+The desktop/browser layout looks good and I do not want it redesigned. Preserve the current desktop look and behavior.
+
+Problem:
+When I open the app on my phone through Replit, a lot of features are not showing, the layout looks bad, some panels are too wide, navigation is cramped, and parts of the app feel unusable.
+
+Goal:
+Make the app work well on mobile while keeping the desktop layout intact.
+
+Before changing:
+- Review the entire app on mobile-sized screens.
+- Check these areas specifically:
+  - App header/navigation
+  - Gorilla Position dashboard/home
+  - Inbox
+  - Roster 2.0
+  - Assign Talent/Draft Board if present
+  - Championships
+  - Stables
+  - Rivalries
+  - Rivalry detail/timeline
+  - News
+  - Chat
+  - Creative Desk
+  - Settings
+  - Dialogs, sheets, context menus, dropdowns, and edit screens
+
+Mobile Requirements:
+- Nothing important should be hidden on mobile.
+- All tabs/features should remain reachable.
+- Header navigation should become mobile-friendly.
+- If the full tab bar does not fit, use a compact mobile nav, menu drawer, bottom nav, or “More” menu.
+- The Gorilla Position wordmark/home tab should still be reachable on mobile.
+- Forms and edit screens should fit the screen.
+- Dialogs should become sheets or full-screen panels on small screens if needed.
+- Cards should stack cleanly.
+- Grids should become 1-column or 2-column where appropriate.
+- Horizontal overflow should be removed unless intentionally used for scrollable chips/carousels.
+- Buttons should be easy to tap.
+- Right-click/context menu actions must have mobile fallback through three-dot menus.
+- Drag-and-drop features must have tap/select/apply fallback on mobile.
+- Chat should be usable on mobile without the input being hidden.
+- The app should respect safe viewport height on mobile browsers.
+
+Do Not:
+- Do not make the desktop version worse.
+- Do not remove features from mobile.
+- Do not hide important actions only because they do not fit.
+- Do not rely on hover-only interactions.
+- Do not rely on right-click-only interactions.
+- Do not create a separate disconnected mobile app.
+
+Design:
+- Keep the same premium dark WWE/Gorilla Position aesthetic.
+- Mobile should feel like the same app, just adapted.
+- Use responsive breakpoints, stacked layouts, collapsible sections, drawers, sheets, and compact cards.
+- Keep spacing tighter on mobile without making it feel cheap.
+
+Navigation:
+- Make the main nav mobile-friendly.
+- Suggested approach:
+  - Keep logo/wordmark/home accessible.
+  - Show a compact menu button or bottom navigation for key tabs.
+  - Put less-used tabs in a More menu if needed.
+- Make sure users can access:
+  - Gorilla Position/Home
+  - Inbox
+  - Creative Desk
+  - Rivalries
+  - News
+  - Roster
+  - Shows
+  - Settings
+
+Specific Features To Check:
+- Roster cards should not be cut off.
+- Championship/stable edit screens should fit mobile.
+- Image upload/change/remove controls should be visible.
+- Assign Talent should work without drag-and-drop.
+- Rivalry timeline should stack vertically and remain readable.
+- News action cards should stack and remain usable.
+- Chat should have a mobile-friendly layout and input bar.
+- Settings should not become endless scrolling; compact sections should still work.
+
+Testing:
+- Test at common widths:
+  - 390px wide iPhone
+  - 430px wide large phone
+  - 768px tablet
+  - desktop width
+- Confirm no horizontal page overflow.
+- Confirm all tabs are reachable.
+- Confirm all create/edit/delete actions are reachable.
+- Confirm dropdowns/context menus work on touch.
+- Confirm dialogs/sheets do not go off-screen.
+- Confirm desktop still looks the same.
+- Run typecheck and tests if available.
