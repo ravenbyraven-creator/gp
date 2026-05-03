@@ -1,0 +1,29 @@
+{
+  "name": "workspace",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ravenbyraven-creator/gp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ravenbyraven-creator/gp/issues"
+  },
+  "homepage": "https://github.com/ravenbyraven-creator/gp#readme",
+  "dependencies": {
+    "drizzle-zod": "^0.8.3",
+    "openai": "^6.35.0",
+    "p-limit": "^7.3.0",
+    "p-retry": "^8.0.0",
+    "zod": "^4.4.2",
+    "zod-validation-error": "^5.0.0"
+  }
+}
