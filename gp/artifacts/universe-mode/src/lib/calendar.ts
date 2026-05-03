@@ -14,6 +14,7 @@ export type PremiumEvent = {
   week: number;
   day: number;
   notes?: string;
+  imageUrl?: string;
 };
 
 export const MONTH_LABELS = [

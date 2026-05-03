@@ -305,11 +305,16 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
                     : `${DAY_SHORT[dayIdx]}${dayEvents.length > 0 ? ` · ${dayEvents.map((e) => e.name).join(", ")}` : ""}`
                 }
               >
-                {/* Show image backdrop */}
+                {/* Show/event image backdrop */}
                 {primaryShow?.imageUrl ? (
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{ backgroundImage: `url(${primaryShow.imageUrl})` }}
+                  />
+                ) : dayEvents[0]?.imageUrl ? (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center"
+                    style={{ backgroundImage: `url(${dayEvents[0].imageUrl})` }}
                   />
                 ) : (
                   <div className="absolute inset-0 bg-muted/20" />

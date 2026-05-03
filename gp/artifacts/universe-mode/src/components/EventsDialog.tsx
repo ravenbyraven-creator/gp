@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Plus, Edit2, Trash2 } from "lucide-react";
+import { Calendar, Plus, Edit2, Trash2, Image } from "lucide-react";
 import { toast } from "sonner";
 import {
   MONTH_LABELS,
@@ -103,6 +103,16 @@ export function EventsDialog({
                         key={e.id}
                         className="group flex items-start gap-3 p-3 rounded-lg border border-border bg-background/40 hover:border-foreground/30 transition-colors"
                       >
+                        {e.imageUrl ? (
+                          <div
+                            className="w-12 h-12 rounded shrink-0 bg-cover bg-center bg-muted/30 border border-border"
+                            style={{ backgroundImage: `url(${e.imageUrl})` }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded shrink-0 bg-muted/20 border border-border flex items-center justify-center">
+                            <Image className="w-4 h-4 text-muted-foreground/30" />
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="font-display font-bold uppercase tracking-wider text-sm leading-tight truncate">
                             {e.name}
@@ -184,6 +194,7 @@ function EventForm({
   const [week, setWeek] = useState(initialData?.week ?? 1);
   const [day, setDay] = useState(initialData?.day ?? 6);
   const [notes, setNotes] = useState(initialData?.notes ?? "");
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,6 +210,7 @@ function EventForm({
       week,
       day,
       notes: notes.trim() || undefined,
+      imageUrl: imageUrl.trim() || undefined,
     });
   };
 
@@ -267,6 +279,32 @@ function EventForm({
             ))}
           </select>
         </div>
+      </div>
+
+      {/* Photo URL */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
+          <Image className="w-3.5 h-3.5" /> Event Photo URL (optional)
+        </label>
+        <Input
+          value={imageUrl}
+          onChange={(e) => setImageUrl(e.target.value)}
+          className="bg-background border-border"
+          placeholder="https://..."
+          type="url"
+        />
+        {imageUrl.trim() && (
+          <div className="relative h-24 rounded-md overflow-hidden border border-border bg-muted/20">
+            <img
+              src={imageUrl.trim()}
+              alt="Event preview"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="space-y-2">
