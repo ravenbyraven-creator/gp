@@ -13,7 +13,7 @@ import {
   buildBookerContext, useChatSessions, useActiveChatSessionId,
   type ChatSession, type RivalryEntry,
 } from "@/lib/storage";
-import { upcomingEvents as sortUpcoming } from "@/lib/calendar";
+import { upcomingEvents as sortUpcoming, weeksUntil } from "@/lib/calendar";
 import type { Rivalry } from "@/lib/rivalry";
 import { rivalryDisplayTitle } from "@/lib/rivalry";
 import { useTokenLog, recordTokenUsage } from "@/lib/tokens";
@@ -215,7 +215,10 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
       const upcoming = sortUpcoming(events, universeDate);
       if (upcoming.length > 0) {
         const e = upcoming[0];
-        const weeksOut = e.month * 4 + e.week - universeDate.month * 4 - universeDate.week;
+        // B-04 fix: use weeksUntil() which is year-aware. The old formula
+        // stripped the year component and returned negative values for events
+        // in the next universe year, causing the urgency signal to never fire.
+        const weeksOut = weeksUntil(e, universeDate);
         if (weeksOut >= 0 && weeksOut <= 3) {
           const whenLabel = weeksOut === 0 ? "THIS WEEK" : weeksOut === 1 ? "1 WEEK AWAY" : `${weeksOut} WEEKS AWAY`;
           signals.push({
@@ -339,11 +342,15 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
 
   const handleDeleteSession = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSessions(prev => prev.filter(s => s.id !== id));
-    if (activeId === id) {
-      const remaining = sessions.filter(s => s.id !== id);
-      setActiveId(remaining.length > 0 ? remaining[0].id : null);
-    }
+    // B-02 fix: use the functional form of setSessions so `remaining` is
+    // derived from the live state, not the stale render-closure `sessions`.
+    setSessions(prev => {
+      const remaining = prev.filter(s => s.id !== id);
+      if (activeId === id) {
+        setActiveId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      return remaining;
+    });
   };
 
   const handleSend = (overrideInput?: string) => {
@@ -424,6 +431,11 @@ export function Chat({ fullScreen, onToggleFullScreen, onRequestBack }: ChatProp
                   if (!summaryData.summary) return;
                   setSessions(prev => prev.map(s => {
                     if (s.id !== targetId) return s;
+                    // S-03 fix: only advance the archive pointer if it hasn't
+                    // already moved forward. Guards against a stale closure
+                    // writing an older newArchivedEnd over a newer one.
+                    const currentArchived = s.archivedCount ?? 0;
+                    if (newArchivedEnd <= currentArchived) return s;
                     return { ...s, summary: summaryData.summary, archivedCount: newArchivedEnd };
                   }));
                 },

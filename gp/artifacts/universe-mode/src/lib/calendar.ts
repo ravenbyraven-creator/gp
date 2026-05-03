@@ -128,8 +128,9 @@ export function advanceToNextShow(
     const dayIdx = nightToDay(show.night);
     if (dayIdx === null) continue;
 
-    // Look forward up to 8 weeks to be safe.
-    for (let offset = 1; offset <= DAYS_PER_YEAR; offset++) {
+    // B-05 fix: the answer is always within 7 days (one full week). The old
+    // bound of DAYS_PER_YEAR (365) was up to 52× more work than needed.
+    for (let offset = 1; offset <= DAYS_PER_WEEK; offset++) {
       const candidateInt = currentInt + offset;
       const candidate = intToDate(candidateInt);
       if (candidate.day === dayIdx) {
@@ -185,7 +186,8 @@ export function nextShowNight(
     const dayIdx = nightToDay(show.night);
     if (dayIdx === null) continue;
 
-    for (let offset = 1; offset <= DAYS_PER_YEAR; offset++) {
+    // B-05 fix: same as advanceToNextShow — cap at 7 (one full week).
+    for (let offset = 1; offset <= DAYS_PER_WEEK; offset++) {
       const candidateInt = currentInt + offset;
       const candidate = intToDate(candidateInt);
       if (candidate.day === dayIdx) {

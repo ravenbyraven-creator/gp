@@ -119,8 +119,22 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value;
+      const valueToStore = (() => {
+        if (value instanceof Function) {
+          // B-01 fix: read fresh from storage instead of using the stale
+          // render-closure value. This prevents data loss when two components
+          // write to the same key in rapid succession (e.g. inbox generation
+          // and date advance firing at the same time).
+          try {
+            const raw = window.localStorage.getItem(key);
+            const fresh: T = raw ? JSON.parse(raw) : initialValue;
+            return value(fresh);
+          } catch {
+            return value(storedValue);
+          }
+        }
+        return value;
+      })();
       setStoredValue(valueToStore);
       if (typeof window !== "undefined") {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));

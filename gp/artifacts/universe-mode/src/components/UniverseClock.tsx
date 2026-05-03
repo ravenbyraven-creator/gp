@@ -74,6 +74,10 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const [draftLoggerOpen, setDraftLoggerOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
+  // S-01 fix: store the pre-advance events snapshot so undo can restore them.
+  // Using a ref (not state) because this is transient data — it only lives for
+  // the 8-second undo window and doesn't need to trigger a re-render.
+  const lastEventsRef = useRef<typeof events | null>(null);
   const [showDrafts] = useShowDrafts();
   const [seasonStart] = useSeasonStart();
 
@@ -173,7 +177,14 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
             })),
             read: false,
           };
-          setIssues((prev) => [issue, ...prev]);
+          setIssues((prev) => {
+            // B-07 fix: guard against duplicate issue numbers. If two advances
+            // fire before either onSuccess resolves, both compute the same
+            // nextIssueNumber from their stale closure. The first one wins;
+            // the second is silently dropped instead of creating a duplicate.
+            if (prev.some((i) => i.issueNumber === issue.issueNumber)) return prev;
+            return [issue, ...prev];
+          });
           toast.success("HOT OFF THE PRESS", {
             description: `Issue #${issue.issueNumber} just hit the stands.`,
           });
@@ -190,6 +201,8 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
     if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
     undoTimerRef.current = window.setTimeout(() => {
       setLastDate(null);
+      // S-01 fix: also clear the events snapshot when the undo window expires.
+      lastEventsRef.current = null;
     }, UNDO_WINDOW_MS);
     return () => {
       if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
@@ -219,6 +232,9 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
     }
 
     const surviving = archivePastEvents(events, date, next);
+    // S-01 fix: snapshot the full pre-advance events array so undo can
+    // restore any events that get archived during this advance.
+    lastEventsRef.current = events;
     if (surviving.length !== events.length) {
       setEvents(surviving);
     }
@@ -266,6 +282,11 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const handleUndo = () => {
     if (!lastDate) return;
     setDate(lastDate);
+    // S-01 fix: restore events that were archived during the advance.
+    if (lastEventsRef.current !== null) {
+      setEvents(lastEventsRef.current);
+      lastEventsRef.current = null;
+    }
     setLastDate(null);
     toast.success("Time rewound");
   };
