@@ -32,7 +32,7 @@ function useImageUpload(onLoad: (url: string) => void) {
   return { ref, open, handleChange };
 }
 
-const EVENT_CAP = 8;
+const EVENT_CAP = 20;
 
 export function EventsDialog({
   open,
@@ -42,6 +42,8 @@ export function EventsDialog({
   currentDate,
   externalEditing,
   prefillDate,
+  seasonStart: _seasonStart,
+  seasonYear,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -49,7 +51,9 @@ export function EventsDialog({
   setEvents: (next: PremiumEvent[] | ((prev: PremiumEvent[]) => PremiumEvent[])) => void;
   currentDate: UniverseDate;
   externalEditing?: PremiumEvent | null;
-  prefillDate?: { month: number; week: number; day: number };
+  prefillDate?: { month: number; week: number; day: number; year?: number };
+  seasonStart?: number;
+  seasonYear?: number;
 }) {
   const [editing, setEditing] = useState<PremiumEvent | null>(null);
   const [adding, setAdding] = useState(false);
@@ -94,6 +98,8 @@ export function EventsDialog({
 
   const showingForm = adding || editing !== null;
 
+  const defaultYear = prefillDate?.year ?? seasonYear ?? currentDate.year;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px] bg-card border-border text-foreground">
@@ -107,6 +113,7 @@ export function EventsDialog({
           <EventForm
             initialData={editing}
             prefillDate={editing ? undefined : prefillDate}
+            defaultYear={editing ? undefined : defaultYear}
             onSave={handleSave}
             onCancel={() => {
               setEditing(null);
@@ -146,7 +153,7 @@ export function EventsDialog({
                           />
                         ) : (
                           <div className="w-12 h-12 rounded shrink-0 bg-muted/20 border border-border flex items-center justify-center">
-                            <Image className="w-4 h-4 text-muted-foreground/30" />
+                            <Camera className="w-4 h-4 text-muted-foreground/30" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -219,11 +226,13 @@ export function EventsDialog({
 function EventForm({
   initialData,
   prefillDate,
+  defaultYear,
   onSave,
   onCancel,
 }: {
   initialData: PremiumEvent | null;
-  prefillDate?: { month: number; week: number; day: number };
+  prefillDate?: { month: number; week: number; day: number; year?: number };
+  defaultYear?: number;
   onSave: (e: PremiumEvent) => void;
   onCancel: () => void;
 }) {
@@ -242,12 +251,14 @@ function EventForm({
       toast.error("Event needs a name");
       return;
     }
+    const resolvedYear = initialData?.year ?? defaultYear;
     onSave({
       id: initialData?.id ?? crypto.randomUUID(),
       name: trimmed,
       month,
       week,
       day,
+      year: resolvedYear,
       notes: notes.trim() || undefined,
       imageUrl: imageUrl || undefined,
     });

@@ -354,6 +354,14 @@ export function useAutoMagazine() {
   return useLocalStorage<boolean>("umc.autoMagazine", true);
 }
 
+/**
+ * Which month the season starts on (1=Jan … 12=Dec). Default 1.
+ * Drives the CalendarView season-lock and the Advance season gate.
+ */
+export function useSeasonStart() {
+  return useLocalStorage<number>("umc.seasonStart", 1);
+}
+
 export const APP_STORAGE_KEYS: string[] = [
   "umc.roster",
   "umc.shows",
@@ -392,6 +400,7 @@ export const APP_STORAGE_KEYS: string[] = [
   "umc.inboxStarredIds",
   "umc.inboxLastFire",
   "umc.inboxReplies",
+  "umc.seasonStart",
 ];
 
 export function useChampionLookup(): Map<string, Championship[]> {

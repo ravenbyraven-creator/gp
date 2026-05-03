@@ -20,6 +20,7 @@ import {
   buildBookerContext,
   useTitleReigns,
   useShowDrafts,
+  useSeasonStart,
 } from "@/lib/storage";
 import { ShowDraftLogger } from "./ShowDraftLogger";
 import {
@@ -39,6 +40,7 @@ import {
   nightToDay,
   weekKey,
   MONTH_LABELS,
+  seasonYearOf,
   type UniverseDate,
   type PremiumEvent,
 } from "@/lib/calendar";
@@ -71,6 +73,7 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const undoTimerRef = useRef<number | null>(null);
   const [showDrafts] = useShowDrafts();
+  const [seasonStart] = useSeasonStart();
 
   const [roster] = useRoster();
   const [chairman] = useChairman();
@@ -197,6 +200,17 @@ export function UniverseClock({ onOpenRoadToPLE }: { onOpenRoadToPLE?: () => voi
       });
       return;
     }
+
+    // Season gate — block crossing into a new season without confirmation
+    const currentSeason = seasonYearOf(date, seasonStart);
+    const nextSeason = seasonYearOf(next, seasonStart);
+    if (nextSeason > currentSeason) {
+      const confirmed = window.confirm(
+        `Season ${currentSeason + 1} is complete.\n\nAll shows have been played. Are you ready to begin Season ${nextSeason + 1}?`
+      );
+      if (!confirmed) return;
+    }
+
     const surviving = archivePastEvents(events, date, next);
     if (surviving.length !== events.length) {
       setEvents(surviving);

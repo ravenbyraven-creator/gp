@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Star, Tv, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { useUniverseDate, useEvents, useShows } from "@/lib/storage";
+import { useUniverseDate, useEvents, useShows, useSeasonStart } from "@/lib/storage";
 import {
   MONTH_LABELS,
   nightToDay,
+  seasonYearOf,
+  currentSeasonDateRange,
   type PremiumEvent,
 } from "@/lib/calendar";
 import { EventsDialog } from "./EventsDialog";
@@ -34,11 +36,16 @@ export function CalendarView() {
   const [date] = useUniverseDate();
   const [events, setEvents] = useEvents();
   const [shows] = useShows();
+  const [seasonStart] = useSeasonStart();
+
+  const seasonYear = seasonYearOf(date, seasonStart);
+  const range = currentSeasonDateRange(seasonYear, seasonStart);
 
   const [viewMonth, setViewMonth] = useState(date.month);
   const [viewYear, setViewYear] = useState(date.year);
   const followingDate = useRef(true);
 
+  // Keep view in sync with universe date when following
   useEffect(() => {
     if (followingDate.current) {
       setViewMonth(date.month);
@@ -46,14 +53,24 @@ export function CalendarView() {
     }
   }, [date.month, date.year]);
 
+  // When the season changes (e.g. season start setting changed), snap view
+  // to the universe date if it's now out of range.
+  useEffect(() => {
+    const inRange = range.some((r) => r.month === viewMonth && r.year === viewYear);
+    if (!inRange) {
+      setViewMonth(date.month);
+      setViewYear(date.year);
+      followingDate.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasonStart]);
+
   const [tapLogOpen, setTapLogOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
-  const [externalEditing, setExternalEditing] = useState<PremiumEvent | null | undefined>(
-    undefined,
-  );
+  const [externalEditing, setExternalEditing] = useState<PremiumEvent | null | undefined>(undefined);
   const [prefillDate, setPrefillDate] = useState<
-    { month: number; week: number; day: number } | undefined
+    { month: number; week: number; day: number; year: number } | undefined
   >();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,43 +86,25 @@ export function CalendarView() {
     return () => window.removeEventListener("mousedown", close);
   }, [contextMenu]);
 
-  const showsByDay: Record<number, (typeof shows)[0] | undefined> = {};
-  for (const show of shows) {
-    const d = nightToDay(show.night);
-    if (d !== null && !showsByDay[d]) showsByDay[d] = show;
-  }
-
-  const eventsByKey: Record<string, PremiumEvent> = {};
-  for (const ev of events) {
-    if (ev.month === viewMonth) {
-      eventsByKey[`${ev.week}-${ev.day}`] = ev;
-    }
-  }
-
-  const canGoPrev = !(viewYear === 0 && viewMonth === 1);
-  const canGoNext =
-    viewYear < date.year || (viewYear === date.year && viewMonth < date.month);
+  // Season navigation
+  const currentRangeIdx = range.findIndex((r) => r.month === viewMonth && r.year === viewYear);
+  const canGoPrev = currentRangeIdx > 0;
+  const canGoNext = currentRangeIdx < 11;
 
   const handlePrevMonth = () => {
     if (!canGoPrev) return;
     followingDate.current = false;
-    if (viewMonth === 1) {
-      setViewMonth(12);
-      setViewYear((y) => y - 1);
-    } else {
-      setViewMonth((m) => m - 1);
-    }
+    const prev = range[currentRangeIdx - 1];
+    setViewMonth(prev.month);
+    setViewYear(prev.year);
   };
 
   const handleNextMonth = () => {
     if (!canGoNext) return;
     followingDate.current = false;
-    if (viewMonth === 12) {
-      setViewMonth(1);
-      setViewYear((y) => y + 1);
-    } else {
-      setViewMonth((m) => m + 1);
-    }
+    const next = range[currentRangeIdx + 1];
+    setViewMonth(next.month);
+    setViewYear(next.year);
   };
 
   const isViewingCurrentMonth = viewMonth === date.month && viewYear === date.year;
@@ -116,6 +115,36 @@ export function CalendarView() {
     setViewYear(date.year);
   };
 
+  // Build show-by-day lookup
+  const showsByDay: Record<number, (typeof shows)[0] | undefined> = {};
+  for (const show of shows) {
+    const d = nightToDay(show.night);
+    if (d !== null && !showsByDay[d]) showsByDay[d] = show;
+  }
+
+  // Filter events for the viewed month.
+  // Year-aware events match by both month and year.
+  // Legacy events (no year) match by month only.
+  const eventsByKey: Record<string, PremiumEvent> = {};
+  for (const ev of events) {
+    const yearMatch = ev.year === undefined || ev.year === viewYear;
+    if (ev.month === viewMonth && yearMatch) {
+      eventsByKey[`${ev.week}-${ev.day}`] = ev;
+    }
+  }
+
+  // Build a set of months in this season that have PLEs (for pill indicators)
+  const pleMonthKeys = new Set<string>();
+  for (const ev of events) {
+    const yearMatch = ev.year === undefined
+      ? true
+      : range.some((r) => r.month === ev.month && r.year === ev.year);
+    if (yearMatch) {
+      const rangeEntry = range.find((r) => r.month === ev.month);
+      if (rangeEntry) pleMonthKeys.add(`${rangeEntry.month}-${rangeEntry.year}`);
+    }
+  }
+
   const handleCellRightClick = (e: React.MouseEvent, week: number, day: number) => {
     e.preventDefault();
     e.stopPropagation();
@@ -125,7 +154,7 @@ export function CalendarView() {
 
   const openAddEvent = () => {
     if (!contextMenu) return;
-    setPrefillDate({ month: viewMonth, week: contextMenu.week, day: contextMenu.day });
+    setPrefillDate({ month: viewMonth, week: contextMenu.week, day: contextMenu.day, year: viewYear });
     setExternalEditing(undefined);
     setEventsDialogOpen(true);
     setContextMenu(null);
@@ -158,11 +187,50 @@ export function CalendarView() {
     ? shows.find((s) => nightToDay(s.night) === date.day) ?? null
     : null;
 
-  const seasonLabel = `Season ${viewYear + 1}`;
+  const seasonLabel = `Season ${seasonYear + 1}`;
   const monthLabel = MONTH_LABELS[viewMonth - 1];
 
   return (
     <div className="w-full" onClick={() => setContextMenu(null)}>
+
+      {/* ── Season month pill strip ── */}
+      <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
+        {range.map((r, idx) => {
+          const isView = r.month === viewMonth && r.year === viewYear;
+          const isCurrent = r.month === date.month && r.year === date.year;
+          const hasPLE = pleMonthKeys.has(`${r.month}-${r.year}`);
+          const label = MONTH_LABELS[r.month - 1];
+          return (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                followingDate.current = false;
+                setViewMonth(r.month);
+                setViewYear(r.year);
+              }}
+              className={cn(
+                "relative flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase transition-all",
+                isView
+                  ? "bg-foreground text-background"
+                  : isCurrent
+                    ? "border border-emerald-400/60 text-emerald-400 bg-transparent hover:bg-emerald-400/10"
+                    : "border border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+              title={`${label} · ${r.year + 1}`}
+            >
+              {label}
+              {hasPLE && !isView && (
+                <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-amber-400" />
+              )}
+              {isCurrent && !isView && (
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ── Month header ── */}
       <div className="flex items-center justify-between mb-5">
         <div>
@@ -381,7 +449,7 @@ export function CalendarView() {
         </div>
       )}
 
-      {/* ── Events dialog (shared with Creative Desk) ── */}
+      {/* ── Events dialog ── */}
       <EventsDialog
         open={eventsDialogOpen}
         onOpenChange={handleCloseDialog}
@@ -390,6 +458,8 @@ export function CalendarView() {
         currentDate={date}
         externalEditing={externalEditing}
         prefillDate={prefillDate}
+        seasonStart={seasonStart}
+        seasonYear={seasonYear}
       />
 
       <TapLog open={tapLogOpen} onOpenChange={setTapLogOpen} />

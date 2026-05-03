@@ -13,6 +13,9 @@ export type PremiumEvent = {
   month: number;
   week: number;
   day: number;
+  /** Universe year this event belongs to. When set, the event is year-scoped (no auto-repeat).
+   *  When absent, legacy repeating behaviour is used. */
+  year?: number;
   notes?: string;
   imageUrl?: string;
 };
@@ -136,25 +139,29 @@ export function advanceToNextShow(
     }
   }
 
-  // For each premium event, project to the same year as currentDate and
-  // pick the next occurrence (this year or next year).
+  // For premium events: year-aware events use exact date; legacy events project to this/next year.
   for (const event of events) {
-    const thisYearInt = dateToInt({
-      year: currentDate.year,
-      month: event.month,
-      week: event.week,
-      day: event.day,
-    });
-    if (thisYearInt > currentInt) {
-      candidates.push(thisYearInt);
+    if (event.year !== undefined) {
+      const eventInt = dateToInt({ year: event.year, month: event.month, week: event.week, day: event.day });
+      if (eventInt > currentInt) candidates.push(eventInt);
     } else {
-      const nextYearInt = dateToInt({
-        year: currentDate.year + 1,
+      const thisYearInt = dateToInt({
+        year: currentDate.year,
         month: event.month,
         week: event.week,
         day: event.day,
       });
-      candidates.push(nextYearInt);
+      if (thisYearInt > currentInt) {
+        candidates.push(thisYearInt);
+      } else {
+        const nextYearInt = dateToInt({
+          year: currentDate.year + 1,
+          month: event.month,
+          week: event.week,
+          day: event.day,
+        });
+        candidates.push(nextYearInt);
+      }
     }
   }
 
@@ -195,42 +202,19 @@ export function nextShowNight(
 }
 
 /**
- * Number of weeks (rounded down to nearest week, minimum 0) between
- * currentDate and an eventDate. Computed against this-year-or-next-year
- * projection of the event so it never returns a negative number.
- */
-export function weeksUntil(
-  eventDate: { month: number; week: number; day: number },
-  currentDate: UniverseDate,
-): number {
-  const currentInt = dateToInt(currentDate);
-  const thisYearInt = dateToInt({
-    year: currentDate.year,
-    month: eventDate.month,
-    week: eventDate.week,
-    day: eventDate.day,
-  });
-  const projectedInt =
-    thisYearInt >= currentInt
-      ? thisYearInt
-      : dateToInt({
-          year: currentDate.year + 1,
-          month: eventDate.month,
-          week: eventDate.week,
-          day: eventDate.day,
-        });
-  const diffDays = projectedInt - currentInt;
-  return Math.max(0, Math.floor(diffDays / DAYS_PER_WEEK));
-}
-
-/**
- * Days difference, projecting event to this year or next.
+ * Days difference from currentDate to eventDate.
+ * Year-aware events use their stored year directly.
+ * Legacy (no year) events project to this year or next.
  */
 export function daysUntil(
-  eventDate: { month: number; week: number; day: number },
+  eventDate: { month: number; week: number; day: number; year?: number },
   currentDate: UniverseDate,
 ): number {
   const currentInt = dateToInt(currentDate);
+  if (eventDate.year !== undefined) {
+    const eventInt = dateToInt({ year: eventDate.year, month: eventDate.month, week: eventDate.week, day: eventDate.day });
+    return Math.max(0, eventInt - currentInt);
+  }
   const thisYearInt = dateToInt({
     year: currentDate.year,
     month: eventDate.month,
@@ -250,39 +234,40 @@ export function daysUntil(
 }
 
 /**
+ * Number of weeks (rounded down, minimum 0) between currentDate and an event.
+ * Year-aware events use their stored year. Legacy events project to this/next year.
+ */
+export function weeksUntil(
+  eventDate: { month: number; week: number; day: number; year?: number },
+  currentDate: UniverseDate,
+): number {
+  const diffDays = daysUntil(eventDate, currentDate);
+  return Math.max(0, Math.floor(diffDays / DAYS_PER_WEEK));
+}
+
+/**
  * Sort and filter events to those still upcoming (relative to currentDate).
- * "Past" means strictly before currentDate (same-day events are still upcoming
- * until the user advances past them).
+ * Year-aware events are included only if their exact date >= currentDate.
+ * Legacy events are always included (projected to future).
  */
 export function upcomingEvents(
   events: PremiumEvent[],
   currentDate: UniverseDate,
 ): PremiumEvent[] {
   const currentInt = dateToInt(currentDate);
-  const futureOnly = events.filter((e) => {
-    const eventInt = dateToInt({
-      year: currentDate.year,
-      month: e.month,
-      week: e.week,
-      day: e.day,
-    });
-    if (eventInt >= currentInt) return true;
-    // wraps to next year — still future
+  const future = events.filter((e) => {
+    if (e.year !== undefined) {
+      const eventInt = dateToInt({ year: e.year, month: e.month, week: e.week, day: e.day });
+      return eventInt >= currentInt;
+    }
     return true;
   });
-  return [...futureOnly].sort((a, b) => {
-    const aDays = daysUntil(a, currentDate);
-    const bDays = daysUntil(b, currentDate);
-    return aDays - bDays;
-  });
+  return [...future].sort((a, b) => daysUntil(a, currentDate) - daysUntil(b, currentDate));
 }
 
 /**
- * Filter out events whose date has been passed by currentDate.
- * Used to auto-archive events when advancing the universe.
- *
- * "Passed" means strictly before currentDate (same-day events are kept so
- * the AI still treats the day-of as the upcoming PPV).
+ * Filter out events whose date has been passed by newDate.
+ * Year-aware events compare directly. Legacy events use old projection logic.
  */
 export function archivePastEvents(
   events: PremiumEvent[],
@@ -291,15 +276,80 @@ export function archivePastEvents(
 ): PremiumEvent[] {
   const newInt = dateToInt(newDate);
   return events.filter((e) => {
-    // Project the event into the previous year-or-this-year window so we
-    // can tell if `newDate` has now passed it.
+    if (e.year !== undefined) {
+      const eventInt = dateToInt({ year: e.year, month: e.month, week: e.week, day: e.day });
+      return eventInt > newInt;
+    }
+    // Legacy projection logic
+    const prevInt = dateToInt(previousDate);
     const candidates = [
       dateToInt({ year: previousDate.year, month: e.month, week: e.week, day: e.day }),
       dateToInt({ year: previousDate.year + 1, month: e.month, week: e.week, day: e.day }),
     ];
-    // Pick the nearest projection that was >= previousDate.
-    const prevInt = dateToInt(previousDate);
     const projected = candidates.find((c) => c >= prevInt) ?? candidates[0];
     return projected > newInt;
   });
+}
+
+// ── Season utilities ───────────────────────────────────────────────────────
+
+/**
+ * Returns the 12 months of a season in order, starting from startMonth.
+ * e.g. startMonth=4 → [4,5,6,7,8,9,10,11,12,1,2,3]
+ */
+export function seasonMonths(startMonth: number): number[] {
+  const months: number[] = [];
+  for (let i = 0; i < 12; i++) {
+    months.push(((startMonth - 1 + i) % 12) + 1);
+  }
+  return months;
+}
+
+/**
+ * Returns the "season year" for a given universe date.
+ * If season starts in April (month 4): months 4-12 → same year, months 1-3 → year-1.
+ * If season starts in January (month 1): always returns date.year (full-year seasons).
+ */
+export function seasonYearOf(date: UniverseDate, startMonth: number): number {
+  if (startMonth === 1) return date.year;
+  return date.month >= startMonth ? date.year : date.year - 1;
+}
+
+/**
+ * Returns the ordered list of { month, year } universe coordinates for a season.
+ * seasonYear is the return value of seasonYearOf().
+ */
+export function currentSeasonDateRange(
+  seasonYear: number,
+  startMonth: number,
+): Array<{ month: number; year: number }> {
+  const months = seasonMonths(startMonth);
+  return months.map((m) => {
+    const year = startMonth > 1 && m < startMonth ? seasonYear + 1 : seasonYear;
+    return { month: m, year };
+  });
+}
+
+/**
+ * Returns the { month, year } of the last month in a season.
+ */
+export function seasonEndMonthYear(
+  seasonYear: number,
+  startMonth: number,
+): { month: number; year: number } {
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  const endYear = startMonth === 1 ? seasonYear : seasonYear + 1;
+  return { month: endMonth, year: endYear };
+}
+
+/**
+ * Returns true if the given universe date falls inside the season
+ * defined by [seasonYear, startMonth].
+ */
+export function isInSeason(
+  date: UniverseDate,
+  seasonYear: number,
+  startMonth: number,
+): boolean {
+  return seasonYearOf(date, startMonth) === seasonYear;
 }

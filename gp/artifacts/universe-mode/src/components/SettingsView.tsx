@@ -5,8 +5,10 @@ import {
   useTheme,
   useFont,
   useAutoMagazine,
+  useSeasonStart,
   APP_STORAGE_KEYS,
 } from "@/lib/storage";
+import { MONTH_LABELS } from "@/lib/calendar";
 import { useTokenLog, deriveTokenStats, formatTokenCount, ENDPOINT_LABELS } from "@/lib/tokens";
 import { CHAIRMEN } from "@/lib/chairmen";
 import { FONT_OPTIONS } from "@/lib/fonts";
@@ -80,6 +82,7 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
   const [theme, setTheme] = useTheme();
   const [font, setFont] = useFont();
   const [autoMagazine, setAutoMagazine] = useAutoMagazine();
+  const [seasonStart, setSeasonStart] = useSeasonStart();
   const [tokenLog, setTokenLog] = useTokenLog();
   const tokenStats = deriveTokenStats(tokenLog);
 
@@ -248,6 +251,40 @@ export function SettingsView({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="space-y-2">
+
+        {/* ── Universe Settings ── */}
+        <SettingsSection label="Universe Settings">
+
+          <SettingsRow
+            label="Season Start"
+            hint="Which month your season begins. The calendar locks to 12 months from this month."
+          >
+            <div className="flex flex-wrap gap-1.5">
+              {MONTH_LABELS.map((m, i) => {
+                const monthNum = i + 1;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setSeasonStart(monthNum)}
+                    className={cn(
+                      "px-3 py-1.5 rounded border text-[11px] font-bold tracking-wider uppercase transition-colors",
+                      seasonStart === monthNum
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border bg-card text-muted-foreground hover:border-foreground/40 hover:text-foreground",
+                    )}
+                  >
+                    {m}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground/60 mt-2 leading-snug">
+              WWE typically starts in April (post-WrestleMania). Changing this takes effect immediately.
+            </p>
+          </SettingsRow>
+
+        </SettingsSection>
 
         {/* ── App Preferences ── */}
         <SettingsSection label="App Preferences">
