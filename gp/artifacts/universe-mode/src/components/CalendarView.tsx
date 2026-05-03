@@ -65,7 +65,17 @@ export function CalendarView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seasonStart]);
 
-  const [tapLogOpen, setTapLogOpen] = useState(false);
+  const pillStripRef = useRef<HTMLDivElement>(null);
+  const activePillRef = useRef<HTMLButtonElement>(null);
+
+  // Scroll the pill strip so the active (viewed) month is visible
+  useEffect(() => {
+    if (activePillRef.current && pillStripRef.current) {
+      activePillRef.current.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+    }
+  }, [viewMonth, viewYear, seasonStart]);
+
+  const [tapLogOpen, setTapLogOpen]= useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [eventsDialogOpen, setEventsDialogOpen] = useState(false);
   const [externalEditing, setExternalEditing] = useState<PremiumEvent | null | undefined>(undefined);
@@ -194,7 +204,7 @@ export function CalendarView() {
     <div className="w-full" onClick={() => setContextMenu(null)}>
 
       {/* ── Season month pill strip ── */}
-      <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
+      <div ref={pillStripRef} className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 scrollbar-none">
         {range.map((r, idx) => {
           const isView = r.month === viewMonth && r.year === viewYear;
           const isCurrent = r.month === date.month && r.year === date.year;
@@ -203,6 +213,7 @@ export function CalendarView() {
           return (
             <button
               key={idx}
+              ref={isView ? activePillRef : undefined}
               type="button"
               onClick={() => {
                 followingDate.current = false;
