@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar, Plus, Edit2, Trash2, Image } from "lucide-react";
+import { Calendar, Plus, Edit2, Trash2, Camera, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   MONTH_LABELS,
@@ -14,6 +14,23 @@ import {
   type PremiumEvent,
   type UniverseDate,
 } from "@/lib/calendar";
+
+function useImageUpload(onLoad: (url: string) => void) {
+  const ref = useRef<HTMLInputElement>(null);
+  const open = () => ref.current?.click();
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 4 * 1024 * 1024) { toast.error("Image is too large (max 4 MB)"); return; }
+    const reader = new FileReader();
+    reader.onload = () => { if (typeof reader.result === "string") onLoad(reader.result); };
+    reader.onerror = () => toast.error("Could not read image");
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+  return { ref, open, handleChange };
+}
 
 const EVENT_CAP = 8;
 
@@ -194,7 +211,8 @@ function EventForm({
   const [week, setWeek] = useState(initialData?.week ?? 1);
   const [day, setDay] = useState(initialData?.day ?? 6);
   const [notes, setNotes] = useState(initialData?.notes ?? "");
-  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl ?? "");
+  const [imageUrl, setImageUrl] = useState<string | undefined>(initialData?.imageUrl);
+  const { ref: fileRef, open: openFile, handleChange: handleFileChange } = useImageUpload((url) => setImageUrl(url));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,7 +228,7 @@ function EventForm({
       week,
       day,
       notes: notes.trim() || undefined,
-      imageUrl: imageUrl.trim() || undefined,
+      imageUrl: imageUrl || undefined,
     });
   };
 
@@ -281,30 +299,45 @@ function EventForm({
         </div>
       </div>
 
-      {/* Photo URL */}
+      {/* Event Photo */}
       <div className="space-y-2">
-        <label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground flex items-center gap-1.5">
-          <Image className="w-3.5 h-3.5" /> Event Photo URL (optional)
+        <label className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
+          Event Photo (optional)
         </label>
-        <Input
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          className="bg-background border-border"
-          placeholder="https://..."
-          type="url"
-        />
-        {imageUrl.trim() && (
-          <div className="relative h-24 rounded-md overflow-hidden border border-border bg-muted/20">
-            <img
-              src={imageUrl.trim()}
-              alt="Event preview"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
-          </div>
+        <button
+          type="button"
+          onClick={openFile}
+          className="relative w-full h-28 rounded-md overflow-hidden border border-border bg-muted/20 group flex items-center justify-center hover:border-foreground/40 transition-colors"
+        >
+          {imageUrl ? (
+            <>
+              <img
+                src={imageUrl}
+                alt="Event preview"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <Camera className="w-5 h-5 text-white" />
+                <span className="text-xs font-bold tracking-wider uppercase text-white">Change Photo</span>
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-muted-foreground/50">
+              <Camera className="w-6 h-6" />
+              <span className="text-[11px] font-bold tracking-wider uppercase">Click to upload photo</span>
+            </div>
+          )}
+        </button>
+        {imageUrl && (
+          <button
+            type="button"
+            onClick={() => setImageUrl(undefined)}
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            <X className="w-3 h-3" /> Remove photo
+          </button>
         )}
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
       </div>
 
       <div className="space-y-2">
